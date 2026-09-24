@@ -68,7 +68,8 @@ python compose.py [image]
 ### The popup
 
 - Opens **centered on the monitor where OBS is** (useful with several monitors; if OBS is minimized it uses the monitor it was on). If OBS isn't found, it opens on the main monitor.
-- Twitch Dark style, always on top and with a **fixed size**, so nothing jumps between states: question → progress (category → game image → story) → done (story thumbnail + *Open folder*) or error (with *Retry*).
+- Twitch Dark style, always on top and with a **fixed size**, so nothing jumps between states: question → progress (category → game image → story created → sending to social media, naming each destination as it goes) → done or error (with *Retry*).
+- The done screen confirms the story was created (or reused) and lists every destination with ✓ or ✗ plus the reason if it failed, next to the story thumbnail and *Open folder*.
 - Keyboard: `Enter` = main button, `Esc` = No / Close. It can't be closed while the story is being generated.
 - **If there's already a story for that game** in `output/` (the most recent one), it's shown large first (the popup grows only for this preview): *Send this one* publishes it as is, without generating anything; *Generate new* builds a fresh one and sends it. Turn it off with `"reuse_existing_story": false`.
 
@@ -99,7 +100,7 @@ Picked in this order:
 | `reuse_existing_story` | `true` (default): if a story for the game already exists, preview it and ask before generating a new one. `false`: always generate. |
 | `screen_fit` | `"contain"` (default): whole game image, with black bands inside the TV where it doesn't reach. `"cover"`: fills the screen and crops the sides (the game logo may get cut). |
 | `category_delay_seconds` | Wait before reading the category, in case you change it right as the stream starts. |
-| `destinations` | Where to publish; each one is a module in `destinations/` with `"enabled": true/false`. Today: `open_image`. |
+| `destinations` | Where to publish; each one is a module in `destinations/` (with a `publish()` function and a `NAME` shown in the popup) toggled with `"enabled": true/false`. Today: `open_image`. |
 
 ---
 
@@ -167,7 +168,8 @@ python compose.py [imagen]
 ### El popup
 
 - Se abre **centrado en el monitor donde está OBS** (útil con varios monitores; si OBS está minimizado usa el monitor en el que estaba). Si no encuentra OBS, sale en el monitor principal.
-- Estilo Twitch Dark, siempre encima y de **tamaño fijo**, para que nada salte entre estados: pregunta → progreso (categoría → imagen del juego → historia) → listo (miniatura de la historia + *Abrir carpeta*) o error (con *Reintentar*).
+- Estilo Twitch Dark, siempre encima y de **tamaño fijo**, para que nada salte entre estados: pregunta → progreso (categoría → imagen del juego → historia creada → envío a redes sociales, diciendo a qué destino está enviando) → listo o error (con *Reintentar*).
+- La pantalla final confirma que la historia se ha creado (o reutilizado) y lista cada destino con ✓ o ✗ y el motivo si falló, junto a la miniatura de la historia y *Abrir carpeta*.
 - Teclado: `Enter` = botón principal, `Esc` = No / Cerrar. No se puede cerrar mientras se genera la historia.
 - **Si ya hay una historia de ese juego** en `output/` (la más reciente), primero se enseña en grande (el popup crece solo para esta vista previa): *Enviar esta* la publica tal cual, sin generar nada; *Generar nueva* crea otra y la envía. Se desactiva con `"reuse_existing_story": false`.
 
@@ -198,4 +200,4 @@ Se elige en este orden:
 | `reuse_existing_story` | `true` (por defecto): si ya existe una historia del juego, la enseña y pregunta antes de generar otra. `false`: genera siempre. |
 | `screen_fit` | `"contain"` (por defecto): la imagen del juego entera, con bandas negras dentro de la tele donde no llegue. `"cover"`: llena la pantalla y recorta los laterales (puede cortar el logo del juego). |
 | `category_delay_seconds` | Espera antes de leer la categoría, por si la cambias justo al empezar el directo. |
-| `destinations` | Dónde publicar; cada uno es un módulo en `destinations/` con `"enabled": true/false`. Hoy: `open_image`. |
+| `destinations` | Dónde publicar; cada uno es un módulo en `destinations/` (con una función `publish()` y un `NAME` que se enseña en el popup) activado con `"enabled": true/false`. Hoy: `open_image`. |
