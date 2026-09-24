@@ -65,6 +65,12 @@ Leave that console open. It connects to OBS (if OBS is closed it retries every 5
 python compose.py [image]
 ```
 
+### The popup
+
+- Opens **centered on the monitor where OBS is** (useful with several monitors; if OBS is minimized it uses the monitor it was on). If OBS isn't found, it opens on the main monitor.
+- Twitch Dark style, always on top and with a **fixed size**, so nothing jumps between states: question → progress (category → game image → story) → done (story thumbnail + *Open folder*) or error (with *Retry*).
+- Keyboard: `Enter` = main button, `Esc` = No / Close. It can't be closed while the story is being generated.
+
 ### Game image
 
 Picked in this order:
@@ -155,6 +161,12 @@ Deja esa consola abierta. Se conecta a OBS (si OBS está cerrado reintenta cada 
 :: compone una historia de prueba sin credenciales (imagen generada si no se pasa ninguna)
 python compose.py [imagen]
 ```
+
+### El popup
+
+- Se abre **centrado en el monitor donde está OBS** (útil con varios monitores; si OBS está minimizado usa el monitor en el que estaba). Si no encuentra OBS, sale en el monitor principal.
+- Estilo Twitch Dark, siempre encima y de **tamaño fijo**, para que nada salte entre estados: pregunta → progreso (categoría → imagen del juego → historia) → listo (miniatura de la historia + *Abrir carpeta*) o error (con *Reintentar*).
+- Teclado: `Enter` = botón principal, `Esc` = No / Cerrar. No se puede cerrar mientras se genera la historia.
 
 ### Imagen del juego
 
