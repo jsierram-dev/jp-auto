@@ -128,11 +128,26 @@ def compose(template_path: Path, game_image: Image.Image, crt_effect: bool = Fal
 
 
 def save_story(image: Image.Image, output_folder: Path, game_name: str) -> Path:
-    """Guarda como output/AAAAMMDD_HHMM_<slug>.jpg y devuelve la ruta."""
+    """Guarda como output/AAAAMMDD_HHMM_<slug>.jpg y devuelve la ruta.
+
+    Solo se queda la última historia de cada juego: las anteriores de ese juego se borran.
+    """
     output_folder.mkdir(parents=True, exist_ok=True)
     path = output_folder / f"{datetime.now():%Y%m%d_%H%M}_{slugify(game_name)}.jpg"
     image.save(path, "JPEG", quality=JPEG_QUALITY)
+    for old in _stories_of(output_folder, game_name):
+        if old != path:
+            old.unlink(missing_ok=True)
     return path
+
+
+def _stories_of(output_folder: Path, game_name: str) -> list[Path]:
+    """Historias generadas de ese juego (formato exacto de save_story), de la más antigua a la más reciente."""
+    if not output_folder.is_dir():
+        return []
+    pattern = re.compile(rf"^\d{{8}}_\d{{4}}_{re.escape(slugify(game_name))}\.jpg$")
+    # El prefijo con fecha y hora hace que el orden alfabético sea el cronológico
+    return sorted(p for p in output_folder.iterdir() if p.is_file() and pattern.match(p.name))
 
 
 def find_existing_story(output_folder: Path, game_name: str) -> Path | None:
@@ -141,12 +156,8 @@ def find_existing_story(output_folder: Path, game_name: str) -> Path | None:
     Solo cuenta los archivos con el formato exacto de save_story, así que se ignoran
     pruebas como comparar_*.jpg y juegos con un slug más largo (fortnite-x no es fortnite).
     """
-    if not output_folder.is_dir():
-        return None
-    pattern = re.compile(rf"^\d{{8}}_\d{{4}}_{re.escape(slugify(game_name))}\.jpg$")
-    matches = sorted(p for p in output_folder.iterdir() if p.is_file() and pattern.match(p.name))
-    # El prefijo con fecha y hora hace que el orden alfabético sea el cronológico
-    return matches[-1] if matches else None
+    stories = _stories_of(output_folder, game_name)
+    return stories[-1] if stories else None
 
 
 def story_date(path: Path) -> str:
