@@ -6,9 +6,9 @@
 
 ## English
 
-> **Status: phase 1 working** (image generation + open locally), verified with a real OBS stream start and real Twitch/IGDB data. Social media publishing comes in phase 2.
+> **Status: phases 1 and 2 working.** Verified with a real OBS stream start, real Twitch/IGDB data, a real Instagram Story and a real TikTok draft.
 
-When you press "Start Streaming" in OBS Studio, a popup asks whether to send notices. If you accept, it builds a story image (1080×1920) with the game from your current Twitch category placed inside the TV screen of the `story-notice.png` template, and opens it.
+When you press "Start Streaming" in OBS Studio, a popup asks whether to send notices. If you accept, it builds a story image (1080×1920) with the game from your current Twitch category placed inside the TV screen of the `story-notice.png` template, and **publishes it as an Instagram Story** and **sends it to your TikTok inbox as a draft** (plus opening it on the PC).
 
 Runs as an external program connected to OBS over WebSocket (OBS 28+), never as an OBS script — a blocking dialog would freeze OBS. Lightweight enough for a modest streaming PC.
 
@@ -58,13 +58,27 @@ python stream_notice.py
 
 Leave that console open. It connects to OBS (if OBS is closed it retries every 5 s, and reconnects if OBS is closed later), and when you press *Start Streaming* the popup shows up. Stop it with `Ctrl+C` or by closing the console. Generated stories are saved in `output/`.
 
+### Social media (Instagram and TikTok)
+
+Both need the story at a **public URL**, so it's first uploaded to the `media` branch of this (public) repository: each publish replaces the branch with a single parentless commit holding the current story plus fixed files (TikTok's verification files, the legal docs and this README), so it never piles up old images or touches `main`.
+
+- **Instagram** (`destinations/instagram.py`) — publishes a **Story** with the official *Instagram API with Instagram Login* (no Facebook Page needed). One-time setup: professional account (Creator/Business) → app in [Meta for Developers](https://developers.facebook.com) with the *Manage messaging & content on Instagram* use case → add yourself as *Instagram Tester* and accept the invite → *API setup with Instagram login* → *Generate token* → `destinations.instagram.access_token`. The app stays in development mode (own account only, no App Review). The 60-day token is refreshed automatically once it's older than 24 h.
+- **TikTok** (`destinations/tiktok.py`) — sends the photo to your **TikTok inbox as a draft**; you finish and post it in the app with a couple of taps. Fully automatic public posting isn't possible officially: unaudited apps can only post privately and TikTok's audit rejects tools for your own account. One-time setup: app in [TikTok for Developers](https://developers.tiktok.com) → switch to **Sandbox** (no review needed), add *Login Kit* (redirect URI `http://localhost:3455/callback/`) and *Content Posting API*, scopes `user.info.basic` + `video.upload`, verify the URL prefix `https://raw.githubusercontent.com/<you>/jp-auto/media/`, add your account as target user → sandbox client key/secret in `destinations.tiktok` → authorize once with `python -m destinations.tiktok --login`.
+- **GitHub** (`hosting.py`) — a fine-grained token with *Contents: Read and write* on this repo only → `hosting.github_token`.
+- Tokens the program refreshes on its own live in **`tokens.json`** (git-ignored, next to `config.json`).
+- The TikTok app details (terms, privacy, desktop URL) point to [`legal/terms.md`](legal/terms.md), [`legal/privacy.md`](legal/privacy.md) and this README, served from the `media` branch because TikTok requires them under the verified URL prefix.
+
+### Moving it to another PC
+
+`git clone` brings the code, the template and the tests, but **not your credentials** (`config.json`, `tokens.json`) nor your `game_images/` and `output/`, which are git-ignored on purpose. Follow *Getting started* and copy `config.json` and `tokens.json` over, changing `obs.password` to that PC's OBS WebSocket password. Use it on one PC at a time: TikTok's refresh token rotates, so two copies refreshing on their own would invalidate each other (if that happens, run `python -m destinations.tiktok --login` again).
+
 ### Testing
 
 Every feature is verified at three levels, all in `tests/` and run with [pytest](https://docs.pytest.org/):
 
-- **Unit tests** — story composition (screen detection, fit modes, no white halo around the screen, one story per game), Twitch/IGDB logic against a simulated API (token caching and renewal, IGDB → box art fallbacks, search by name), own image matching, and destinations (a failing one never stops the rest).
+- **Unit tests** — story composition (screen detection, fit modes, no white halo around the screen, one story per game), Twitch/IGDB logic against a simulated API (token caching and renewal, IGDB → box art fallbacks, search by name), own image matching, destinations (a failing one never stops the rest), and GitHub hosting, Instagram and TikTok against simulated APIs (token refresh, processing states, clear errors).
 - **Integration** — the real app, window included, against a **fake OBS** that speaks the real obs-websocket v5 protocol (hello, password challenge, stream events): reconnection, wrong password, duplicate events, every popup state, fixed size, placement on OBS's monitor, the window never freezing, existing story preview, image picker and failing destinations. It runs in its own process with temporary `game_images/` and `output/` folders.
-- **Real regression** — run before every merge: **real mouse clicks, wheel and keystrokes** (Windows API) against **real Twitch and IGDB**. Only the stream start comes from the fake OBS, so nothing ever goes live on the channel. It moves the cursor for a couple of minutes, so it only runs when asked for explicitly.
+- **Real regression** — run before every merge: **real mouse clicks, wheel and keystrokes** (Windows API) against **real Twitch and IGDB**. Only the stream start comes from the fake OBS, so nothing ever goes live on the channel, and it only uses the *open on PC* destination, so it never posts to social media. It moves the cursor for a couple of minutes, so it only runs when asked for explicitly.
 
 ```bat
 pip install -r requirements-dev.txt
@@ -119,15 +133,16 @@ game_images/
 | `reuse_existing_story` | `true` (default): if a story for the game already exists, preview it and ask before generating a new one. `false`: always generate. |
 | `screen_fit` | `"cover"` (default): fills the TV screen, cropping what doesn't fit (very wide images lose their sides, sometimes part of the game logo — use an own image in `game_images/` for those). `"contain"`: whole game image, with black bands inside the TV where it doesn't reach. |
 | `category_delay_seconds` | Wait before reading the category, in case you change it right as the stream starts. |
-| `destinations` | Where to publish; each one is a module in `destinations/` (with a `publish()` function and a `NAME` shown in the popup) toggled with `"enabled": true/false`. Today: `open_image`. |
+| `hosting` | Public URL for the story: `github_token`, `repo`, `branch` (`media`), `static_files` (fixed files by content, e.g. TikTok verification) and `project_files` (project files published as is). |
+| `destinations` | Where to publish; each one is a module in `destinations/` (with a `publish()` function and a `NAME` shown in the popup) toggled with `"enabled": true/false`: `open_image`, `instagram`, `tiktok` (with `title`/`description`, `{game}` is replaced). |
 
 ---
 
 ## Español
 
-> **Estado: fase 1 funcionando** (generación de la imagen + abrirla en local), verificada con un inicio de directo real en OBS y datos reales de Twitch/IGDB. La publicación en redes llega en la fase 2.
+> **Estado: fases 1 y 2 funcionando.** Verificadas con un inicio de directo real en OBS, datos reales de Twitch/IGDB, una historia real en Instagram y un borrador real en TikTok.
 
-Cuando pulsas "Iniciar transmisión" en OBS Studio, una ventana pregunta si quieres enviar los avisos. Si aceptas, genera una imagen de historia (1080×1920) con el juego de tu categoría actual de Twitch dentro de la pantalla de la tele de la plantilla `story-notice.png`, y la abre.
+Cuando pulsas "Iniciar transmisión" en OBS Studio, una ventana pregunta si quieres enviar los avisos. Si aceptas, genera una imagen de historia (1080×1920) con el juego de tu categoría actual de Twitch dentro de la pantalla de la tele de la plantilla `story-notice.png`, y **la publica como historia de Instagram** y **la manda como borrador a tu bandeja de TikTok** (además de abrirla en el PC).
 
 Funciona como programa externo conectado a OBS por WebSocket (OBS 28+), nunca como script de OBS: un diálogo bloqueante congelaría OBS. Es ligero para un PC de streaming modesto.
 
@@ -177,13 +192,27 @@ python stream_notice.py
 
 Deja esa consola abierta. Se conecta a OBS (si OBS está cerrado reintenta cada 5 s, y si se cierra después vuelve a conectarse solo) y, al pulsar *Iniciar transmisión*, aparece el popup. Se para con `Ctrl+C` o cerrando la consola. Las historias generadas se guardan en `output/`.
 
+### Redes sociales (Instagram y TikTok)
+
+Las dos necesitan la historia en una **URL pública**, así que primero se sube a la rama `media` de este repositorio (público): en cada publicación la rama se sustituye por un único commit sin padres con la historia actual y los archivos fijos (los de verificación de TikTok, los documentos legales y este README), así que nunca acumula imágenes antiguas ni toca `main`.
+
+- **Instagram** (`destinations/instagram.py`) — publica una **historia** con la API oficial *Instagram API with Instagram Login* (sin página de Facebook). Configuración única: cuenta profesional (Creador/Empresa) → app en [Meta for Developers](https://developers.facebook.com) con el caso de uso *Manage messaging & content on Instagram* → añadirte como *Instagram Tester* y aceptar la invitación → *API setup with Instagram login* → *Generate token* → `destinations.instagram.access_token`. La app se queda en modo desarrollo (solo tu cuenta, sin App Review). El token de 60 días se renueva solo cuando tiene más de 24 h.
+- **TikTok** (`destinations/tiktok.py`) — manda la foto a tu **bandeja de TikTok como borrador**; la terminas y publicas en la app con un par de toques. Publicar en público de forma automática no es posible por la vía oficial: las apps sin auditar solo publican en privado y la auditoría de TikTok rechaza herramientas para la propia cuenta. Configuración única: app en [TikTok for Developers](https://developers.tiktok.com) → cambiar a **Sandbox** (no necesita revisión), añadir *Login Kit* (redirect URI `http://localhost:3455/callback/`) y *Content Posting API*, permisos `user.info.basic` + `video.upload`, verificar el prefijo de URL `https://raw.githubusercontent.com/<tú>/jp-auto/media/`, añadir tu cuenta como target user → client key/secret del sandbox en `destinations.tiktok` → autorizar una vez con `python -m destinations.tiktok --login`.
+- **GitHub** (`hosting.py`) — un token *fine-grained* con *Contents: Read and write* solo sobre este repo → `hosting.github_token`.
+- Los tokens que el programa renueva solo viven en **`tokens.json`** (ignorado por git, junto a `config.json`).
+- Los datos de la app de TikTok (términos, privacidad, URL de escritorio) apuntan a [`legal/terms.md`](legal/terms.md), [`legal/privacy.md`](legal/privacy.md) y este README, servidos desde la rama `media` porque TikTok los exige dentro del prefijo de URL verificado.
+
+### Llevarlo a otro PC
+
+`git clone` trae el código, la plantilla y las pruebas, pero **no tus credenciales** (`config.json`, `tokens.json`) ni tus `game_images/` y `output/`, que git ignora a propósito. Sigue *Cómo arrancarlo* y copia `config.json` y `tokens.json`, cambiando `obs.password` por la contraseña del WebSocket del OBS de ese PC. Úsalo en un solo PC a la vez: el token de renovación de TikTok cambia al usarse, así que dos copias renovando por su cuenta se invalidarían entre sí (si pasa, vuelve a ejecutar `python -m destinations.tiktok --login`).
+
 ### Pruebas
 
 Cada funcionalidad se verifica a tres niveles, todo en `tests/` y ejecutado con [pytest](https://docs.pytest.org/):
 
-- **Unitarias** — composición de la historia (detección de la pantalla, modos de encaje, sin borde blanco alrededor de la pantalla, una historia por juego), lógica de Twitch/IGDB contra una API simulada (caché y renovación del token, IGDB → carátula como respaldo, búsqueda por nombre), búsqueda de imágenes propias y destinos (si uno falla, los demás siguen).
+- **Unitarias** — composición de la historia (detección de la pantalla, modos de encaje, sin borde blanco alrededor de la pantalla, una historia por juego), lógica de Twitch/IGDB contra una API simulada (caché y renovación del token, IGDB → carátula como respaldo, búsqueda por nombre), búsqueda de imágenes propias, destinos (si uno falla, los demás siguen), y alojamiento en GitHub, Instagram y TikTok contra APIs simuladas (renovación de tokens, estados de procesado, errores claros).
 - **Integración** — la app real, con su ventana, contra un **OBS falso** que habla el protocolo real de obs-websocket v5 (saludo, contraseña, eventos de directo): reconexión, contraseña incorrecta, eventos duplicados, todos los estados del popup, tamaño fijo, posición en el monitor de OBS, que la ventana nunca se congele, vista previa de historia existente, selector de imagen y destinos que fallan. Corre en su propio proceso con carpetas temporales de `game_images/` y `output/`.
-- **Regresión real** — antes de cada merge: **clicks, rueda y teclas reales** del ratón y el teclado (API de Windows) contra **Twitch e IGDB reales**. Solo el inicio de directo sale del OBS falso, así que nunca se emite en el canal. Mueve el cursor durante un par de minutos, así que solo se ejecuta si se pide expresamente.
+- **Regresión real** — antes de cada merge: **clicks, rueda y teclas reales** del ratón y el teclado (API de Windows) contra **Twitch e IGDB reales**. Solo el inicio de directo sale del OBS falso, así que nunca se emite en el canal, y solo usa el destino *abrir en el PC*, así que nunca publica en redes. Mueve el cursor durante un par de minutos, así que solo se ejecuta si se pide expresamente.
 
 ```bat
 pip install -r requirements-dev.txt
@@ -238,4 +267,5 @@ game_images/
 | `reuse_existing_story` | `true` (por defecto): si ya existe una historia del juego, la enseña y pregunta antes de generar otra. `false`: genera siempre. |
 | `screen_fit` | `"cover"` (por defecto): rellena la pantalla de la tele y recorta lo que sobra (a las imágenes muy anchas se les cortan los laterales, a veces parte del logo del juego; para esas, usa una imagen propia en `game_images/`). `"contain"`: la imagen del juego entera, con bandas negras dentro de la tele donde no llegue. |
 | `category_delay_seconds` | Espera antes de leer la categoría, por si la cambias justo al empezar el directo. |
-| `destinations` | Dónde publicar; cada uno es un módulo en `destinations/` (con una función `publish()` y un `NAME` que se enseña en el popup) activado con `"enabled": true/false`. Hoy: `open_image`. |
+| `hosting` | URL pública para la historia: `github_token`, `repo`, `branch` (`media`), `static_files` (archivos fijos por contenido, p. ej. la verificación de TikTok) y `project_files` (archivos del proyecto publicados tal cual). |
+| `destinations` | Dónde publicar; cada uno es un módulo en `destinations/` (con una función `publish()` y un `NAME` que se enseña en el popup) activado con `"enabled": true/false`: `open_image`, `instagram`, `tiktok` (con `title`/`description`, `{game}` se sustituye). |

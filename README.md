@@ -12,7 +12,7 @@ Workspace with small, independent automations — each one a self-contained proj
 
 | Project | What it is |
 |---|---|
-| [`stream-notice`](projects/stream-notice) | When a Twitch stream starts in OBS, asks whether to send notices and builds a story image (1080×1920) with the current game inside the TV of a template, ready to publish to social media. Python, external to OBS (WebSocket). |
+| [`stream-notice`](projects/stream-notice) | When a Twitch stream starts in OBS, asks whether to send notices and builds a story image (1080×1920) with the current game inside the TV of a template, and publishes it as an Instagram Story and a TikTok draft. Python, external to OBS (WebSocket). |
 
 Each has its own README with installation and usage.
 
@@ -31,7 +31,7 @@ Workspace con automatizaciones chicas e independientes — cada una es un proyec
 
 | Proyecto | Qué es |
 |---|---|
-| [`stream-notice`](projects/stream-notice) | Cuando empieza un directo de Twitch en OBS, pregunta si enviar avisos y genera una imagen de historia (1080×1920) con el juego actual dentro de la tele de una plantilla, lista para publicar en redes. Python, externo a OBS (WebSocket). |
+| [`stream-notice`](projects/stream-notice) | Cuando empieza un directo de Twitch en OBS, pregunta si enviar avisos y genera una imagen de historia (1080×1920) con el juego actual dentro de la tele de una plantilla, y la publica como historia de Instagram y borrador de TikTok. Python, externo a OBS (WebSocket). |
 
 Cada uno tiene su propio README con instalación y uso.
 
