@@ -1,0 +1,9 @@
+{
+  "obs": { "host": "localhost", "port": 4455, "password": "CONTRASEÑA_WEBSOCKET_OBS" },
+  "twitch": { "channel": "jscorpiodv", "client_id": "TU_CLIENT_ID", "client_secret": "TU_CLIENT_SECRET" },
+  "template": "story-notice.png",
+  "output_folder": "output",
+  "game_images_folder": "game_images",
+  "crt_effect": true,
+  "category_delay_seconds": 5
+}
