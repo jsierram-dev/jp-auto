@@ -12,6 +12,7 @@ import requests
 
 import tls  # noqa: F401 (certificados de Windows, por los antivirus que analizan HTTPS)
 
+PROJECT = Path(__file__).parent
 API = "https://api.github.com"
 RAW = "https://raw.githubusercontent.com"
 TIMEOUT = 20
@@ -51,6 +52,13 @@ def upload(image_path: Path, settings: dict, session: requests.Session | None = 
     name = f"stories/{int(time.time())}_{Path(image_path).name}"
     files = {name: Path(image_path).read_bytes()}
     files.update({path: content.encode("utf-8") for path, content in settings.get("static_files", {}).items()})
+    # Archivos del propio proyecto que se publican tal cual (p. ej. términos y privacidad, que TikTok
+    # exige dentro de la URL verificada): {"ruta publicada": "ruta dentro del proyecto"}
+    for published, source in settings.get("project_files", {}).items():
+        source_path = PROJECT / source
+        if not source_path.is_file():
+            raise HostingError(f"No existe {source} (hosting.project_files en config.json).")
+        files[published] = source_path.read_bytes()
 
     tree = []
     for path, content in files.items():

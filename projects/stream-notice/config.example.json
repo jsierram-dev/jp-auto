@@ -1,6 +1,14 @@
 {
-  "obs": { "host": "localhost", "port": 4455, "password": "CONTRASEÑA_WEBSOCKET_OBS" },
-  "twitch": { "channel": "jscorpiodv", "client_id": "TU_CLIENT_ID", "client_secret": "TU_CLIENT_SECRET" },
+  "obs": {
+    "host": "localhost",
+    "port": 4455,
+    "password": "CONTRASEÑA_WEBSOCKET_OBS"
+  },
+  "twitch": {
+    "channel": "jscorpiodv",
+    "client_id": "TU_CLIENT_ID",
+    "client_secret": "TU_CLIENT_SECRET"
+  },
   "template": "story-notice.png",
   "output_folder": "output",
   "game_images_folder": "game_images",
@@ -12,11 +20,21 @@
     "github_token": "TU_TOKEN_DE_GITHUB",
     "repo": "jsierram-dev/jp-auto",
     "branch": "media",
-    "static_files": {}
+    "static_files": {},
+    "project_files": {
+      "legal/terms.md": "legal/terms.md",
+      "legal/privacy.md": "legal/privacy.md",
+      "README.md": "README.md"
+    }
   },
   "destinations": {
-    "open_image": { "enabled": true },
-    "instagram": { "enabled": false, "access_token": "TU_TOKEN_DE_INSTAGRAM" },
+    "open_image": {
+      "enabled": true
+    },
+    "instagram": {
+      "enabled": false,
+      "access_token": "TU_TOKEN_DE_INSTAGRAM"
+    },
     "tiktok": {
       "enabled": false,
       "client_key": "TU_CLIENT_KEY_DE_TIKTOK",

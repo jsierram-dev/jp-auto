@@ -94,6 +94,20 @@ def test_hosting_sube_un_commit_huerfano_con_la_historia_y_los_fijos(story):
     assert session.heads == 3  # esperó a que la URL pública respondiera
 
 
+def test_hosting_incluye_archivos_del_proyecto(story):
+    session = GitHubSession()
+    hosting.upload(story, {**SETTINGS, "project_files": {"legal/terms.md": "legal/terms.md"}}, session)
+    tree = next(body for method, path, body in session.requests if path == "git/trees")["tree"]
+    assert "legal/terms.md" in [entry["path"] for entry in tree]
+    import base64
+    assert any(base64.b64decode(blob["content"]).startswith(b"# Terms of Service") for blob in session.blobs)
+
+
+def test_hosting_archivo_del_proyecto_inexistente(story):
+    with pytest.raises(hosting.HostingError, match="no-existe.md"):
+        hosting.upload(story, {**SETTINGS, "project_files": {"x.md": "no-existe.md"}}, GitHubSession())
+
+
 def test_hosting_crea_la_rama_si_no_existe(story):
     session = GitHubSession(ref_exists=False)
     hosting.upload(story, SETTINGS, session)
