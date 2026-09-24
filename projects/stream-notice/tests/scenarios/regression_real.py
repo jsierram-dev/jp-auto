@@ -36,6 +36,8 @@ def main() -> int:
     h = Harness()
     config = sn.load_config()
     config["obs"] = {"host": "localhost", "port": OBS_PORT, "password": OBS_PASSWORD}
+    # Nunca publicar en redes desde la regresión (Instagram/TikTok se prueban a mano): solo "Abrir en el PC"
+    config["destinations"] = {"open_image": {"enabled": True}}
     real_channel = config["twitch"]["channel"]
 
     # Juego real de la categoría actual, para preparar sus imágenes propias y una historia existente
