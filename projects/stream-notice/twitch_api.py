@@ -145,22 +145,28 @@ class TwitchClient:
             raise TwitchError(f"No se pudo descargar la imagen {url}: {error}") from error
 
 
-def find_own_image(game_name: str, folder: Path) -> Path | None:
-    """Imagen propia en game_images/<slug>.(png|jpg|jpeg|webp), si existe."""
-    for extension in OWN_IMAGE_EXTENSIONS:
-        path = folder / f"{slugify(game_name)}{extension}"
-        if path.is_file():
-            return path
-    return None
+def find_own_images(game_name: str, folder: Path) -> list[Path]:
+    """Imágenes propias del juego en game_images/, ordenadas por nombre.
+
+    Cuenta cualquier imagen cuyo nombre contenga el nombre del juego (the-callisto-protocol-2.png,
+    mi-the-callisto-protocol.jpg...) y cualquier imagen dentro de una carpeta cuyo nombre lo contenga
+    (the-callisto-protocol/lo-que-sea.png). Se compara en formato slug: mayúsculas, espacios y tildes dan igual.
+    """
+    slug = slugify(game_name)
+    if not slug or not folder.is_dir():
+        return []
+    found = []
+    for path in folder.rglob("*"):
+        if not path.is_file() or path.suffix.lower() not in OWN_IMAGE_EXTENSIONS:
+            continue
+        names = [path.stem] + [parent.name for parent in path.relative_to(folder).parents if parent.name]
+        if any(slug in slugify(name) for name in names):
+            found.append(path)
+    return sorted(found, key=lambda p: str(p.relative_to(folder)).lower())
 
 
-def get_game_image(client: TwitchClient, game: Game, own_images_folder: Path) -> tuple[Image.Image, str]:
-    """Elige la imagen del juego: propia → IGDB → carátula de Twitch. Devuelve (imagen, origen)."""
-    own = find_own_image(game.name, own_images_folder)
-    if own:
-        return Image.open(own).convert("RGB"), f"imagen propia ({own.name})"
-    print(f"Sin imagen propia. Para usar una, guárdala como {own_images_folder.name}/{slugify(game.name)}.png")
-
+def get_online_image(client: TwitchClient, game: Game) -> tuple[Image.Image, str]:
+    """Imagen de internet: arte de IGDB y, si no hay, carátula de Twitch. Devuelve (imagen, origen)."""
     try:
         for url in client.get_igdb_image_urls(game):
             try:
@@ -176,6 +182,15 @@ def get_game_image(client: TwitchClient, game: Game, own_images_folder: Path) ->
     return client.download_image(game.box_art_url), "carátula de Twitch"
 
 
+def get_game_image(client: TwitchClient, game: Game, own_images_folder: Path) -> tuple[Image.Image, str]:
+    """Elige la imagen sin preguntar: la primera propia → IGDB → carátula de Twitch. Devuelve (imagen, origen)."""
+    own = find_own_images(game.name, own_images_folder)
+    if own:
+        return Image.open(own[0]).convert("RGB"), f"imagen propia ({own[0].name})"
+    print(f"Sin imagen propia. Para usar una, guárdala como {own_images_folder.name}/{slugify(game.name)}.png")
+    return get_online_image(client, game)
+
+
 if __name__ == "__main__":
     # Prueba con credenciales reales: python twitch_api.py
     base = Path(__file__).parent
@@ -188,7 +203,9 @@ if __name__ == "__main__":
     try:
         game = client.get_current_game(config["twitch"]["channel"])
         print(f"Juego actual: {game.name} (igdb_id={game.igdb_id or 'ninguno'})")
-        image, source = get_game_image(client, game, base / config["game_images_folder"])
-        print(f"Imagen elegida: {source}, {image.width}×{image.height}")
+        own = find_own_images(game.name, base / config["game_images_folder"])
+        print(f"Imágenes propias: {[p.name for p in own] or 'ninguna'}")
+        image, source = get_online_image(client, game)
+        print(f"Imagen de internet: {source}, {image.width}×{image.height}")
     except TwitchError as error:
         sys.exit(f"Error: {error}")
