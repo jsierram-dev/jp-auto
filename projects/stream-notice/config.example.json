@@ -5,7 +5,7 @@
   "output_folder": "output",
   "game_images_folder": "game_images",
   "crt_effect": false,
-  "screen_fit": "contain",
+  "screen_fit": "cover",
   "reuse_existing_story": true,
   "category_delay_seconds": 5,
   "destinations": {

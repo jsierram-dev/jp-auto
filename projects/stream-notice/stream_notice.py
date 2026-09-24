@@ -260,7 +260,7 @@ class App:
         self._ui_popup("set_step", 2, f"Imagen del juego: {source}")
         config = self.config
         story = compose(BASE / config["template"], game_image, config.get("crt_effect", False),
-                        config.get("screen_fit", "contain"))
+                        config.get("screen_fit", "cover"))
         path = save_story(story, BASE / config["output_folder"], game.name)
         self._ui_popup("set_step", 3, "Historia creada y guardada")
         self._publish(game, path, source)

@@ -101,7 +101,7 @@ game_images/
 | `template` | Template image with a white TV screen (detected automatically). |
 | `crt_effect` | Subtle scanlines + vignette on the game image (off by default). |
 | `reuse_existing_story` | `true` (default): if a story for the game already exists, preview it and ask before generating a new one. `false`: always generate. |
-| `screen_fit` | `"contain"` (default): whole game image, with black bands inside the TV where it doesn't reach. `"cover"`: fills the screen and crops the sides (the game logo may get cut). |
+| `screen_fit` | `"cover"` (default): fills the TV screen, cropping what doesn't fit (very wide images lose their sides, sometimes part of the game logo — use an own image in `game_images/` for those). `"contain"`: whole game image, with black bands inside the TV where it doesn't reach. |
 | `category_delay_seconds` | Wait before reading the category, in case you change it right as the stream starts. |
 | `destinations` | Where to publish; each one is a module in `destinations/` (with a `publish()` function and a `NAME` shown in the popup) toggled with `"enabled": true/false`. Today: `open_image`. |
 
@@ -204,6 +204,6 @@ game_images/
 | `template` | Plantilla con la pantalla de la tele en blanco (se detecta sola). |
 | `crt_effect` | Scanlines y viñeta sutiles sobre la imagen del juego (desactivado por defecto). |
 | `reuse_existing_story` | `true` (por defecto): si ya existe una historia del juego, la enseña y pregunta antes de generar otra. `false`: genera siempre. |
-| `screen_fit` | `"contain"` (por defecto): la imagen del juego entera, con bandas negras dentro de la tele donde no llegue. `"cover"`: llena la pantalla y recorta los laterales (puede cortar el logo del juego). |
+| `screen_fit` | `"cover"` (por defecto): rellena la pantalla de la tele y recorta lo que sobra (a las imágenes muy anchas se les cortan los laterales, a veces parte del logo del juego; para esas, usa una imagen propia en `game_images/`). `"contain"`: la imagen del juego entera, con bandas negras dentro de la tele donde no llegue. |
 | `category_delay_seconds` | Espera antes de leer la categoría, por si la cambias justo al empezar el directo. |
 | `destinations` | Dónde publicar; cada uno es un módulo en `destinations/` (con una función `publish()` y un `NAME` que se enseña en el popup) activado con `"enabled": true/false`. Hoy: `open_image`. |
