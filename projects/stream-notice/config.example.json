@@ -5,6 +5,7 @@
   "output_folder": "output",
   "game_images_folder": "game_images",
   "crt_effect": true,
+  "screen_fit": "contain",
   "category_delay_seconds": 5,
   "destinations": {
     "open_image": { "enabled": true }

@@ -18,6 +18,10 @@ WHITE_MIN = 225
 WHITE_MAX_SPREAD = 25
 DILATE_PX = 2
 
+# Encaje de la imagen del juego en la pantalla: "contain" (entera) o "cover" (recortada)
+FIT_MODES = ("contain", "cover")
+SCREEN_BANDS_COLOR = (0, 0, 0)
+
 # Efecto CRT: sutil, acorde al estilo de dibujo
 SCANLINE_STEP = 3
 SCANLINE_OPACITY = 0.12
@@ -95,15 +99,26 @@ def fit_to_story(image: Image.Image) -> Image.Image:
     return canvas
 
 
-def compose(template_path: Path, game_image: Image.Image, crt_effect: bool = True) -> Image.Image:
+def fit_to_screen(image: Image.Image, size: tuple[int, int], mode: str) -> Image.Image:
+    """Encaja la imagen del juego en la pantalla según el modo elegido en config."""
+    if mode == "contain":
+        # Imagen entera, con bandas negras donde no llegue (como una tele antigua)
+        return ImageOps.pad(image, size, Image.LANCZOS, color=SCREEN_BANDS_COLOR)
+    if mode == "cover":
+        # Rellena la pantalla entera y recorta lo que sobre
+        return ImageOps.fit(image, size, Image.LANCZOS, centering=(0.5, 0.45))
+    raise ValueError(f"screen_fit debe ser {' o '.join(FIT_MODES)}, no «{mode}».")
+
+
+def compose(template_path: Path, game_image: Image.Image, crt_effect: bool = True,
+            screen_fit: str = "contain") -> Image.Image:
     """Mete la imagen del juego en la pantalla de la plantilla y devuelve la historia 1080×1920."""
     template = Image.open(template_path).convert("RGB")
     mask = detect_screen_mask(template)
     box = mask.getbbox()
     box_size = (box[2] - box[0], box[3] - box[1])
 
-    # Tipo "cover": rellena la pantalla entera y recorta lo que sobre
-    fitted = ImageOps.fit(game_image.convert("RGB"), box_size, Image.LANCZOS, centering=(0.5, 0.45))
+    fitted = fit_to_screen(game_image.convert("RGB"), box_size, screen_fit)
     if crt_effect:
         fitted = apply_crt(fitted)
 

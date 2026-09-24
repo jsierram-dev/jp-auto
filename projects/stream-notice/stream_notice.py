@@ -213,7 +213,8 @@ class App:
 
             game_image, source = get_game_image(self.twitch, game, BASE / config["game_images_folder"])
             print(f"Imagen del juego: {source}")
-            story = compose(BASE / config["template"], game_image, config.get("crt_effect", True))
+            story = compose(BASE / config["template"], game_image, config.get("crt_effect", True),
+                            config.get("screen_fit", "contain"))
             path = save_story(story, BASE / config["output_folder"], game.name)
 
             failed = [result for result in publish(path, game.name, config) if not result.ok]
@@ -222,7 +223,7 @@ class App:
                 message += "\nFalló: " + ", ".join(f"{r.destination} ({r.message})" for r in failed)
         except NoCategoryError as error:
             message = str(error)
-        except (TwitchError, ScreenNotFoundError) as error:
+        except (TwitchError, ScreenNotFoundError, ValueError) as error:
             message = f"Error: {error}"
         except Exception as error:
             traceback.print_exc()

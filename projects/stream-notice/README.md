@@ -58,6 +58,7 @@ Picked in this order:
 | `twitch` | Channel, Client ID and Secret. |
 | `template` | Template image with a white TV screen (detected automatically). |
 | `crt_effect` | Subtle scanlines + vignette on the game image. |
+| `screen_fit` | `"contain"` (default): whole game image, with black bands inside the TV where it doesn't reach. `"cover"`: fills the screen and crops the sides (the game logo may get cut). |
 | `category_delay_seconds` | Wait before reading the category, in case you change it right as the stream starts. |
 | `destinations` | Where to publish; each one is a module in `destinations/` with `"enabled": true/false`. Today: `open_image`. |
 
@@ -117,5 +118,6 @@ Se elige en este orden:
 | `twitch` | Canal, Client ID y Secret. |
 | `template` | Plantilla con la pantalla de la tele en blanco (se detecta sola). |
 | `crt_effect` | Scanlines y viñeta sutiles sobre la imagen del juego. |
+| `screen_fit` | `"contain"` (por defecto): la imagen del juego entera, con bandas negras dentro de la tele donde no llegue. `"cover"`: llena la pantalla y recorta los laterales (puede cortar el logo del juego). |
 | `category_delay_seconds` | Espera antes de leer la categoría, por si la cambias justo al empezar el directo. |
 | `destinations` | Dónde publicar; cada uno es un módulo en `destinations/` con `"enabled": true/false`. Hoy: `open_image`. |
