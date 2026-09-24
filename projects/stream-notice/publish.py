@@ -27,6 +27,7 @@ class PublishContext:
         self.image_path = Path(image_path)
         self.config = config
         self.on_progress = on_progress
+        self.current_step = ""  # lo que se está haciendo, para volver a mostrarlo tras la subida
         self._public_url: str | None = None
 
     def public_url(self) -> str:
@@ -34,6 +35,7 @@ class PublishContext:
             self.on_progress("Subiendo la historia a internet…")
             self._public_url = hosting.upload(self.image_path, self.config.get("hosting", {}))
             print(f"  Historia pública en {self._public_url}")
+            self.on_progress(self.current_step)
         return self._public_url
 
 
@@ -54,7 +56,8 @@ def publish(image_path: Path, game_name: str, config: dict,
         try:
             module = importlib.import_module(f"destinations.{destination}")
             name = getattr(module, "NAME", destination)
-            progress(f"Enviando a {name}…")
+            context.current_step = f"Enviando a {name}…"
+            progress(context.current_step)
             # Los destinos que necesitan la URL pública la piden al contexto
             if "context" in inspect.signature(module.publish).parameters:
                 message = module.publish(Path(image_path), game_name, settings, context=context)

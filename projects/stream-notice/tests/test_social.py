@@ -127,7 +127,8 @@ def test_la_url_publica_se_sube_una_sola_vez_y_solo_si_hace_falta(monkeypatch, s
     results = publish.publish(story, "Fortnite", {"destinations": {"fake_a": {"enabled": True}, "fake_b": {"enabled": True}}},
                               on_progress=progress.append)
     assert uploads == [story] and all(r.ok for r in results)
-    assert "Subiendo la historia a internet…" in progress
+    # Tras subir, vuelve a mostrar el destino en curso
+    assert progress == ["Enviando a fake_a…", "Subiendo la historia a internet…", "Enviando a fake_a…", "Enviando a fake_b…"]
 
 
 # --- Instagram ---
