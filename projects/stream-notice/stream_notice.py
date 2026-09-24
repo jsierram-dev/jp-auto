@@ -21,11 +21,11 @@ from pathlib import Path
 import obsws_python as obs
 from obsws_python.error import OBSSDKError
 
-from compose import ScreenNotFoundError, compose, save_story
+from compose import ScreenNotFoundError, compose, find_existing_story, save_story, story_date
 from obs_monitor import obs_work_area
-from popup import HEIGHT, WIDTH, NoticePopup
+from popup import NoticePopup
 from publish import publish
-from twitch_api import NoCategoryError, TwitchClient, TwitchError, get_game_image
+from twitch_api import TwitchClient, TwitchError, get_game_image
 
 BASE = Path(__file__).parent
 CONFIG_PATH = BASE / "config.json"
@@ -59,6 +59,8 @@ class App:
         self.ui_queue: queue.Queue = queue.Queue()
         self.popup: NoticePopup | None = None
         self.last_story: Path | None = None
+        # (juego, ruta) de la historia existente que se está enseñando en la vista previa
+        self.pending_existing = None
 
         self.root.after(POLL_MS, self._poll_queue)
         # Ctrl+C en consola cierra el programa (el manejador corre en cada revisión de la cola)
@@ -128,31 +130,34 @@ class App:
 
     # --- Popup ---
 
-    def _popup_position(self) -> tuple[int, int]:
-        """Centro del monitor donde está OBS; si no lo encuentra, el monitor principal."""
-        area = obs_work_area()
-        if area is None:
-            area = (0, 0, self.root.winfo_screenwidth(), self.root.winfo_screenheight())
-        left, top, right, bottom = area
-        return left + (right - left - WIDTH) // 2, top + (bottom - top - HEIGHT) // 2
+    def _popup_area(self) -> tuple[int, int, int, int]:
+        """Área útil del monitor donde está OBS; si no lo encuentra, el monitor principal."""
+        return obs_work_area() or (0, 0, self.root.winfo_screenwidth(), self.root.winfo_screenheight())
 
     def _show_popup(self):
         # Un solo popup por inicio de directo
         if self.popup is not None and self.popup.exists():
             return
-        self.popup = NoticePopup(self.root, self._popup_position(), on_accept=self._start_generation,
+        self.popup = NoticePopup(self.root, self._popup_area(), on_accept=self._start_generation,
                                  on_close=self._popup_closed, on_retry=self._start_generation,
-                                 on_open_folder=self._open_folder)
+                                 on_open_folder=self._open_folder, on_send_existing=self._send_existing,
+                                 on_generate_new=lambda: self._start_generation(force_new=True))
 
     def _popup_closed(self):
         self.popup = None
         if self.test_mode:
             self.root.quit()
 
-    def _start_generation(self):
+    def _start_generation(self, force_new: bool = False):
         self.popup.show_working()
         # Red + imagen en otro hilo para que la ventana nunca se congele
-        threading.Thread(target=self._generate, daemon=True).start()
+        threading.Thread(target=self._generate, args=(force_new,), daemon=True).start()
+
+    def _send_existing(self):
+        """El usuario acepta la historia existente que se le ha enseñado."""
+        game, path = self.pending_existing
+        self.popup.show_working()
+        threading.Thread(target=self._publish_existing, args=(game, path), daemon=True).start()
 
     def _open_folder(self):
         # Abre la carpeta de salida con la historia seleccionada
@@ -168,16 +173,29 @@ class App:
                 getattr(self.popup, method)(*args)
         self._in_ui(action)
 
-    # --- Trabajo pesado (hilo aparte: solo habla con la interfaz a través de la cola) ---
+    # --- Trabajo pesado (hilos aparte: solo hablan con la interfaz a través de la cola) ---
 
-    def _generate(self):
+    def _generate(self, force_new: bool = False):
+        """force_new: generar una historia nueva aunque ya exista una (el usuario rechazó la existente)."""
         config = self.config
+        output_folder = BASE / config["output_folder"]
         try:
             # Margen para que Twitch refleje una categoría cambiada justo al empezar
-            time.sleep(max(0, config.get("category_delay_seconds", 0)))
+            # (al pedir una nueva, la categoría se acaba de leer y no hace falta esperar)
+            if not force_new:
+                time.sleep(max(0, config.get("category_delay_seconds", 0)))
             game = self.twitch.get_current_game(config["twitch"]["channel"])
             print(f"Juego actual: {game.name}")
             self._ui_popup("set_step", 1, f"Categoría: {game.name}")
+
+            if config.get("reuse_existing_story", True) and not force_new:
+                existing = find_existing_story(output_folder, game.name)
+                if existing:
+                    # Ya hay una historia de este juego: se enseña en grande y el usuario decide
+                    print(f"Hay una historia existente: {existing.name}. Esperando confirmación...")
+                    self.pending_existing = (game, existing)
+                    self._ui_popup("show_preview", existing, game.name, story_date(existing))
+                    return
 
             game_image, source = get_game_image(self.twitch, game, BASE / config["game_images_folder"])
             print(f"Imagen del juego: {source}")
@@ -185,19 +203,30 @@ class App:
 
             story = compose(BASE / config["template"], game_image, config.get("crt_effect", False),
                             config.get("screen_fit", "contain"))
-            path = save_story(story, BASE / config["output_folder"], game.name)
-            self.last_story = path
-
-            failed = [result for result in publish(path, game.name, config) if not result.ok]
-            warning = ("Falló: " + ", ".join(f"{r.destination} ({r.message})" for r in failed)) if failed else None
-            print("¡Aviso generado!" + (f" {warning}" if warning else ""))
-            self._ui_popup("show_done", path, game.name, source, warning)
-            return
-        except NoCategoryError as error:
-            message = str(error)
-        except (TwitchError, ScreenNotFoundError, ValueError) as error:
-            message = str(error)
+            self._publish(game, save_story(story, output_folder, game.name), source)
         except Exception as error:
+            self._report_error(error)
+
+    def _publish_existing(self, game, path: Path):
+        try:
+            self._ui_popup("set_step", 1, f"Categoría: {game.name}")
+            self._ui_popup("set_step", 2, f"Historia existente del {story_date(path)}")
+            print(f"Se envía la historia existente: {path.name}")
+            self._publish(game, path, f"historia del {story_date(path)}")
+        except Exception as error:
+            self._report_error(error)
+
+    def _publish(self, game, path: Path, source: str):
+        self.last_story = path
+        failed = [result for result in publish(path, game.name, self.config) if not result.ok]
+        warning = ("Falló: " + ", ".join(f"{r.destination} ({r.message})" for r in failed)) if failed else None
+        print("¡Aviso generado!" + (f" {warning}" if warning else ""))
+        self._ui_popup("show_done", path, game.name, source, warning)
+
+    def _report_error(self, error: Exception):
+        if isinstance(error, (TwitchError, ScreenNotFoundError, ValueError)):
+            message = str(error)
+        else:
             traceback.print_exc()
             message = f"Error inesperado: {error}"
         print(f"Error: {message}")

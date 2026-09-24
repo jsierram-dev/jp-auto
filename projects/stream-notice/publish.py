@@ -17,7 +17,7 @@ class PublishResult:
 
 def publish(image_path: Path, game_name: str, config: dict) -> list[PublishResult]:
     """Publica en cada destino activado; si uno falla, los demás siguen."""
-    print(f"Imagen generada: {image_path}")
+    print(f"Publicando historia: {image_path}")
     results = []
     for name, settings in config.get("destinations", DEFAULT_DESTINATIONS).items():
         if not settings.get("enabled", False):

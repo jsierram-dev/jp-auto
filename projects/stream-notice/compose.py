@@ -135,6 +135,26 @@ def save_story(image: Image.Image, output_folder: Path, game_name: str) -> Path:
     return path
 
 
+def find_existing_story(output_folder: Path, game_name: str) -> Path | None:
+    """La historia más reciente ya generada para ese juego (AAAAMMDD_HHMM_<slug>.jpg), o None.
+
+    Solo cuenta los archivos con el formato exacto de save_story, así que se ignoran
+    pruebas como comparar_*.jpg y juegos con un slug más largo (fortnite-x no es fortnite).
+    """
+    if not output_folder.is_dir():
+        return None
+    pattern = re.compile(rf"^\d{{8}}_\d{{4}}_{re.escape(slugify(game_name))}\.jpg$")
+    matches = sorted(p for p in output_folder.iterdir() if p.is_file() and pattern.match(p.name))
+    # El prefijo con fecha y hora hace que el orden alfabético sea el cronológico
+    return matches[-1] if matches else None
+
+
+def story_date(path: Path) -> str:
+    """'20260924_1312_x.jpg' → '24/09 13:12'."""
+    stamp = datetime.strptime(path.name[:13], "%Y%m%d_%H%M")
+    return f"{stamp:%d/%m %H:%M}"
+
+
 def _test_game_image() -> Image.Image:
     """Imagen horizontal de prueba: degradado, rejilla y texto centrado para ver el encuadre."""
     width, height = 1920, 1080

@@ -6,6 +6,7 @@
   "game_images_folder": "game_images",
   "crt_effect": false,
   "screen_fit": "contain",
+  "reuse_existing_story": true,
   "category_delay_seconds": 5,
   "destinations": {
     "open_image": { "enabled": true }

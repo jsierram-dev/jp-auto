@@ -8,6 +8,8 @@ from typing import Callable
 from PIL import Image, ImageDraw, ImageTk
 
 WIDTH, HEIGHT = 440, 320
+# Solo la vista previa de una historia ya existente crece, para verla en grande
+PREVIEW_HEIGHT = 720
 PADDING = 24
 MAX_MESSAGE_CHARS = 200
 
@@ -107,12 +109,19 @@ class FlatButton(tk.Label):
 
 
 class NoticePopup:
-    """Ventana sin marco, siempre encima, de tamaño fijo. Solo se usa desde el hilo de la interfaz."""
+    """Ventana sin marco, siempre encima, de tamaño fijo (salvo la vista previa).
 
-    def __init__(self, root: tk.Tk, position: tuple[int, int], on_accept: Callable, on_close: Callable,
-                 on_retry: Callable, on_open_folder: Callable):
+    area: zona del monitor (izquierda, arriba, derecha, abajo) donde se centra.
+    Solo se usa desde el hilo de la interfaz.
+    """
+
+    def __init__(self, root: tk.Tk, area: tuple[int, int, int, int], on_accept: Callable, on_close: Callable,
+                 on_retry: Callable, on_open_folder: Callable, on_send_existing: Callable,
+                 on_generate_new: Callable):
         self.on_accept, self.on_close = on_accept, on_close
         self.on_retry, self.on_open_folder = on_retry, on_open_folder
+        self.on_send_existing, self.on_generate_new = on_send_existing, on_generate_new
+        self.area = area
         self.working = False
         self._spinner_job = None
         self._progress_job = None
@@ -126,7 +135,9 @@ class NoticePopup:
         self.window = tk.Toplevel(root, bg=BORDER)
         self.window.overrideredirect(True)
         self.window.attributes("-topmost", True)
-        self.window.geometry(f"{WIDTH}x{HEIGHT}+{position[0]}+{position[1]}")
+        left, top, right, bottom = area
+        self.height = HEIGHT
+        self.window.geometry(f"{WIDTH}x{HEIGHT}+{left + (right - left - WIDTH) // 2}+{top + (bottom - top - HEIGHT) // 2}")
         self.window.bind("<Escape>", lambda _: self._escape())
         self.window.bind("<Return>", lambda _: self._enter())
 
@@ -188,7 +199,18 @@ class NoticePopup:
         x, y = event.x_root - self._drag_offset[0], event.y_root - self._drag_offset[1]
         self.window.geometry(f"+{x}+{y}")
 
-    def _clear(self):
+    def _resize(self, height: int):
+        """Cambia el alto manteniendo el centro vertical, sin salirse del monitor."""
+        if height == self.height:
+            return
+        top, bottom = self.area[1], self.area[3]
+        center = self.window.winfo_y() + self.height // 2
+        y = max(top, min(center - height // 2, bottom - height))
+        self.height = height
+        self.window.geometry(f"{WIDTH}x{height}+{self.window.winfo_x()}+{y}")
+
+    def _clear(self, height: int = HEIGHT):
+        self._resize(height)
         self._stop_animations()
         for container in (self.body, self.footer):
             for child in container.winfo_children():
@@ -279,7 +301,7 @@ class NoticePopup:
         self._stop_animations()
         if index < len(self.step_rows):
             self._spin(self.step_rows[index][0], 0)
-        self._animate_progress((index + 0.5) / len(STEPS))
+        self._animate_progress(min(1.0, (index + 0.5) / len(STEPS)))
 
     def _spin(self, icon: tk.Label, frame: int):
         icon.config(image=self.spinner[frame % SPINNER_FRAMES])
@@ -324,3 +346,22 @@ class NoticePopup:
         tk.Label(box, text=_shorten(message), bg=ERROR_BG, fg=ERROR_TEXT, font=(FONT, 10), justify="left",
                  anchor="w", wraplength=WIDTH - 2 * PADDING - 30, padx=12, pady=10).pack(fill="x", padx=(3, 0))
         self._set_buttons(("Cerrar", self.close, False), ("Reintentar", self.on_retry, True))
+
+    def show_preview(self, image_path: Path, game_name: str, date: str):
+        """Historia ya existente en grande: se envía esa o se genera una nueva."""
+        self._clear(PREVIEW_HEIGHT)
+        self.working = False
+        self.close_x.config(fg=MUTED, cursor="hand2")
+        tk.Label(self.body, text=f"Ya tienes una historia de {game_name}", bg=BG, fg=TEXT, font=(FONT, 14, "bold"),
+                 wraplength=WIDTH - 2 * PADDING, justify="left").pack(anchor="w", pady=(8, 0))
+        tk.Label(self.body, text=f"Generada el {date}. ¿Envío esta?", bg=BG, fg=MUTED,
+                 font=(FONT, 10)).pack(anchor="w", pady=(2, 12))
+        # Lo que queda de alto entre los textos y el pie, para la imagen
+        self.window.update_idletasks()
+        available = self.body.winfo_height() - sum(c.winfo_reqheight() + 14 for c in self.body.winfo_children())
+        try:
+            self.thumb = _thumbnail(image_path, height=max(200, available))
+            tk.Label(self.body, image=self.thumb, bg=BG).pack()
+        except OSError:
+            tk.Label(self.body, text="(no se pudo cargar la imagen)", bg=BG, fg=ERROR_TEXT, font=(FONT, 10)).pack()
+        self._set_buttons(("Generar nueva", self.on_generate_new, False), ("Enviar esta", self.on_send_existing, True))
