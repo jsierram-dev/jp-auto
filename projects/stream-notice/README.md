@@ -58,6 +58,22 @@ python stream_notice.py
 
 Leave that console open. It connects to OBS (if OBS is closed it retries every 5 s, and reconnects if OBS is closed later), and when you press *Start Streaming* the popup shows up. Stop it with `Ctrl+C` or by closing the console. Generated stories are saved in `output/`.
 
+### Testing
+
+Every feature is verified at three levels, all in `tests/` and run with [pytest](https://docs.pytest.org/):
+
+- **Unit tests** — story composition (screen detection, fit modes, no white halo around the screen, one story per game), Twitch/IGDB logic against a simulated API (token caching and renewal, IGDB → box art fallbacks, search by name), own image matching, and destinations (a failing one never stops the rest).
+- **Integration** — the real app, window included, against a **fake OBS** that speaks the real obs-websocket v5 protocol (hello, password challenge, stream events): reconnection, wrong password, duplicate events, every popup state, fixed size, placement on OBS's monitor, the window never freezing, existing story preview, image picker and failing destinations. It runs in its own process with temporary `game_images/` and `output/` folders.
+- **Real regression** — run before every merge: **real mouse clicks, wheel and keystrokes** (Windows API) against **real Twitch and IGDB**. Only the stream start comes from the fake OBS, so nothing ever goes live on the channel. It moves the cursor for a couple of minutes, so it only runs when asked for explicitly.
+
+```bat
+pip install -r requirements-dev.txt
+:: unit + integration (~1.5 min, opens popups)
+python -m pytest
+:: real regression: needs config.json, don't touch the mouse
+python -m pytest -m real
+```
+
 ### Other commands
 
 ```bat
@@ -160,6 +176,22 @@ python stream_notice.py
 ```
 
 Deja esa consola abierta. Se conecta a OBS (si OBS está cerrado reintenta cada 5 s, y si se cierra después vuelve a conectarse solo) y, al pulsar *Iniciar transmisión*, aparece el popup. Se para con `Ctrl+C` o cerrando la consola. Las historias generadas se guardan en `output/`.
+
+### Pruebas
+
+Cada funcionalidad se verifica a tres niveles, todo en `tests/` y ejecutado con [pytest](https://docs.pytest.org/):
+
+- **Unitarias** — composición de la historia (detección de la pantalla, modos de encaje, sin borde blanco alrededor de la pantalla, una historia por juego), lógica de Twitch/IGDB contra una API simulada (caché y renovación del token, IGDB → carátula como respaldo, búsqueda por nombre), búsqueda de imágenes propias y destinos (si uno falla, los demás siguen).
+- **Integración** — la app real, con su ventana, contra un **OBS falso** que habla el protocolo real de obs-websocket v5 (saludo, contraseña, eventos de directo): reconexión, contraseña incorrecta, eventos duplicados, todos los estados del popup, tamaño fijo, posición en el monitor de OBS, que la ventana nunca se congele, vista previa de historia existente, selector de imagen y destinos que fallan. Corre en su propio proceso con carpetas temporales de `game_images/` y `output/`.
+- **Regresión real** — antes de cada merge: **clicks, rueda y teclas reales** del ratón y el teclado (API de Windows) contra **Twitch e IGDB reales**. Solo el inicio de directo sale del OBS falso, así que nunca se emite en el canal. Mueve el cursor durante un par de minutos, así que solo se ejecuta si se pide expresamente.
+
+```bat
+pip install -r requirements-dev.txt
+:: unitarias + integración (~1,5 min, abre popups)
+python -m pytest
+:: regresión real: necesita config.json, no toques el ratón
+python -m pytest -m real
+```
 
 ### Otros comandos
 
