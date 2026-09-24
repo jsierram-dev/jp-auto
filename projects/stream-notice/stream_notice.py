@@ -18,6 +18,7 @@ import traceback
 from pathlib import Path
 
 import obsws_python as obs
+from PIL import Image, ImageDraw, ImageTk
 from obsws_python.error import OBSSDKError
 
 from compose import ScreenNotFoundError, compose, save_story
@@ -32,6 +33,13 @@ STREAM_STARTED = "OBS_WEBSOCKET_OUTPUT_STARTED"
 
 FONT = ("Segoe UI", 11)
 FONT_TITLE = ("Segoe UI", 14, "bold")
+
+
+def _red_dot_image(size: int = 20) -> ImageTk.PhotoImage:
+    """Círculo rojo con bordes suavizados (dibujado a 4× y reducido), como el emoji 🔴."""
+    big = Image.new("RGBA", (size * 4, size * 4), (0, 0, 0, 0))
+    ImageDraw.Draw(big).ellipse((4, 4, size * 4 - 4, size * 4 - 4), fill=(229, 57, 53, 255))
+    return ImageTk.PhotoImage(big.resize((size, size), Image.LANCZOS))
 
 
 def load_config() -> dict:
@@ -59,6 +67,7 @@ class App:
         # Cola de funciones que los otros hilos quieren ejecutar en el hilo de la interfaz
         self.ui_queue: queue.Queue = queue.Queue()
         self.popup: tk.Toplevel | None = None
+        self.red_dot: ImageTk.PhotoImage | None = None
         self.working = False
 
         self.root.after(POLL_MS, self._poll_queue)
@@ -135,7 +144,7 @@ class App:
             return
 
         popup = tk.Toplevel(self.root)
-        popup.title("🔴 ¡Directo iniciado!")
+        popup.title("¡Directo iniciado!")
         popup.attributes("-topmost", True)
         popup.resizable(False, False)
         popup.protocol("WM_DELETE_WINDOW", self._close_popup)
@@ -143,7 +152,11 @@ class App:
 
         frame = tk.Frame(popup, padx=24, pady=20)
         frame.pack()
-        tk.Label(frame, text="¿Quieres enviar los avisos?", font=FONT_TITLE).pack(pady=(0, 12))
+        # Tk 8.6 no pinta emojis en color: el 🔴 se dibuja como imagen junto al texto
+        self.red_dot = self.red_dot or _red_dot_image()
+        tk.Label(frame, text=" ¡Directo iniciado!", image=self.red_dot, compound="left",
+                 font=FONT_TITLE).pack(pady=(0, 6))
+        tk.Label(frame, text="¿Quieres enviar los avisos?", font=FONT).pack(pady=(0, 12))
         self.status = tk.Label(frame, text="", font=FONT, wraplength=340, justify="center")
 
         self.buttons = tk.Frame(frame)
