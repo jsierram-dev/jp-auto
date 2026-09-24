@@ -10,6 +10,7 @@ import json
 import logging
 import queue
 import signal
+import subprocess
 import sys
 import threading
 import time
@@ -18,10 +19,11 @@ import traceback
 from pathlib import Path
 
 import obsws_python as obs
-from PIL import Image, ImageDraw, ImageTk
 from obsws_python.error import OBSSDKError
 
 from compose import ScreenNotFoundError, compose, save_story
+from obs_monitor import obs_work_area
+from popup import HEIGHT, WIDTH, NoticePopup
 from publish import publish
 from twitch_api import NoCategoryError, TwitchClient, TwitchError, get_game_image
 
@@ -30,17 +32,6 @@ CONFIG_PATH = BASE / "config.json"
 RETRY_SECONDS = 5
 POLL_MS = 300
 STREAM_STARTED = "OBS_WEBSOCKET_OUTPUT_STARTED"
-
-FONT = ("Segoe UI", 11)
-FONT_TITLE = ("Segoe UI", 14, "bold")
-
-
-def _red_dot_image(size: int = 20) -> ImageTk.PhotoImage:
-    """Círculo rojo con bordes suavizados (dibujado a 4× y reducido), como el emoji 🔴."""
-    big = Image.new("RGBA", (size * 4, size * 4), (0, 0, 0, 0))
-    ImageDraw.Draw(big).ellipse((4, 4, size * 4 - 4, size * 4 - 4), fill=(229, 57, 53, 255))
-    return ImageTk.PhotoImage(big.resize((size, size), Image.LANCZOS))
-
 
 def load_config() -> dict:
     if not CONFIG_PATH.is_file():
@@ -66,9 +57,8 @@ class App:
         self.root.withdraw()
         # Cola de funciones que los otros hilos quieren ejecutar en el hilo de la interfaz
         self.ui_queue: queue.Queue = queue.Queue()
-        self.popup: tk.Toplevel | None = None
-        self.red_dot: ImageTk.PhotoImage | None = None
-        self.working = False
+        self.popup: NoticePopup | None = None
+        self.last_story: Path | None = None
 
         self.root.after(POLL_MS, self._poll_queue)
         # Ctrl+C en consola cierra el programa (el manejador corre en cada revisión de la cola)
@@ -138,67 +128,45 @@ class App:
 
     # --- Popup ---
 
+    def _popup_position(self) -> tuple[int, int]:
+        """Centro del monitor donde está OBS; si no lo encuentra, el monitor principal."""
+        area = obs_work_area()
+        if area is None:
+            area = (0, 0, self.root.winfo_screenwidth(), self.root.winfo_screenheight())
+        left, top, right, bottom = area
+        return left + (right - left - WIDTH) // 2, top + (bottom - top - HEIGHT) // 2
+
     def _show_popup(self):
         # Un solo popup por inicio de directo
-        if self.popup is not None and self.popup.winfo_exists():
+        if self.popup is not None and self.popup.exists():
             return
+        self.popup = NoticePopup(self.root, self._popup_position(), on_accept=self._start_generation,
+                                 on_close=self._popup_closed, on_retry=self._start_generation,
+                                 on_open_folder=self._open_folder)
 
-        popup = tk.Toplevel(self.root)
-        popup.title("¡Directo iniciado!")
-        popup.attributes("-topmost", True)
-        popup.resizable(False, False)
-        popup.protocol("WM_DELETE_WINDOW", self._close_popup)
-        self.popup = popup
-
-        frame = tk.Frame(popup, padx=24, pady=20)
-        frame.pack()
-        # Tk 8.6 no pinta emojis en color: el 🔴 se dibuja como imagen junto al texto
-        self.red_dot = self.red_dot or _red_dot_image()
-        tk.Label(frame, text=" ¡Directo iniciado!", image=self.red_dot, compound="left",
-                 font=FONT_TITLE).pack(pady=(0, 6))
-        tk.Label(frame, text="¿Quieres enviar los avisos?", font=FONT).pack(pady=(0, 12))
-        self.status = tk.Label(frame, text="", font=FONT, wraplength=340, justify="center")
-
-        self.buttons = tk.Frame(frame)
-        self.buttons.pack()
-        tk.Button(self.buttons, text="Sí, enviar", font=FONT, width=12, command=self._accept).pack(side="left", padx=6)
-        tk.Button(self.buttons, text="No", font=FONT, width=12, command=self._close_popup).pack(side="left", padx=6)
-        self.close_button = tk.Button(frame, text="Cerrar", font=FONT, width=12, command=self._close_popup)
-
-        # Centrado en pantalla y con el foco
-        popup.update_idletasks()
-        x = (popup.winfo_screenwidth() - popup.winfo_width()) // 2
-        y = (popup.winfo_screenheight() - popup.winfo_height()) // 3
-        popup.geometry(f"+{x}+{y}")
-        popup.lift()
-        popup.focus_force()
-
-    def _close_popup(self):
-        if self.working:
-            return  # no se cierra a mitad de generar la imagen
-        if self.popup is not None:
-            self.popup.destroy()
-            self.popup = None
+    def _popup_closed(self):
+        self.popup = None
         if self.test_mode:
             self.root.quit()
 
-    def _accept(self):
-        self.working = True
-        self.buttons.pack_forget()
-        self.status.pack()
-        self._set_status("Leyendo la categoría de Twitch...")
+    def _start_generation(self):
+        self.popup.show_working()
         # Red + imagen en otro hilo para que la ventana nunca se congele
         threading.Thread(target=self._generate, daemon=True).start()
 
-    def _set_status(self, text: str):
-        if self.popup is not None and self.popup.winfo_exists():
-            self.status.config(text=text)
+    def _open_folder(self):
+        # Abre la carpeta de salida con la historia seleccionada
+        if self.last_story and self.last_story.is_file():
+            subprocess.Popen(["explorer", "/select,", str(self.last_story)])
+        else:
+            subprocess.Popen(["explorer", str(BASE / self.config["output_folder"])])
 
-    def _finish(self, text: str):
-        self.working = False
-        self._set_status(text)
-        if self.popup is not None and self.popup.winfo_exists():
-            self.close_button.pack(pady=(14, 0))
+    def _ui_popup(self, method: str, *args):
+        """Llama a un método del popup desde el hilo de la interfaz, si sigue abierto."""
+        def action():
+            if self.popup is not None and self.popup.exists():
+                getattr(self.popup, method)(*args)
+        self._in_ui(action)
 
     # --- Trabajo pesado (hilo aparte: solo habla con la interfaz a través de la cola) ---
 
@@ -209,27 +177,31 @@ class App:
             time.sleep(max(0, config.get("category_delay_seconds", 0)))
             game = self.twitch.get_current_game(config["twitch"]["channel"])
             print(f"Juego actual: {game.name}")
-            self._in_ui(lambda: self._set_status(f"Preparando imagen de {game.name}..."))
+            self._ui_popup("set_step", 1, f"Categoría: {game.name}")
 
             game_image, source = get_game_image(self.twitch, game, BASE / config["game_images_folder"])
             print(f"Imagen del juego: {source}")
+            self._ui_popup("set_step", 2, f"Imagen del juego: {source}")
+
             story = compose(BASE / config["template"], game_image, config.get("crt_effect", False),
                             config.get("screen_fit", "contain"))
             path = save_story(story, BASE / config["output_folder"], game.name)
+            self.last_story = path
 
             failed = [result for result in publish(path, game.name, config) if not result.ok]
-            message = "¡Aviso generado!"
-            if failed:
-                message += "\nFalló: " + ", ".join(f"{r.destination} ({r.message})" for r in failed)
+            warning = ("Falló: " + ", ".join(f"{r.destination} ({r.message})" for r in failed)) if failed else None
+            print("¡Aviso generado!" + (f" {warning}" if warning else ""))
+            self._ui_popup("show_done", path, game.name, source, warning)
+            return
         except NoCategoryError as error:
             message = str(error)
         except (TwitchError, ScreenNotFoundError, ValueError) as error:
-            message = f"Error: {error}"
+            message = str(error)
         except Exception as error:
             traceback.print_exc()
             message = f"Error inesperado: {error}"
-        print(message)
-        self._in_ui(lambda: self._finish(message))
+        print(f"Error: {message}")
+        self._ui_popup("show_error", message)
 
 
 def main():
