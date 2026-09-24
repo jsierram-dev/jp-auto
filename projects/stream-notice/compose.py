@@ -110,7 +110,7 @@ def fit_to_screen(image: Image.Image, size: tuple[int, int], mode: str) -> Image
     raise ValueError(f"screen_fit debe ser {' o '.join(FIT_MODES)}, no «{mode}».")
 
 
-def compose(template_path: Path, game_image: Image.Image, crt_effect: bool = True,
+def compose(template_path: Path, game_image: Image.Image, crt_effect: bool = False,
             screen_fit: str = "contain") -> Image.Image:
     """Mete la imagen del juego en la pantalla de la plantilla y devuelve la historia 1080×1920."""
     template = Image.open(template_path).convert("RGB")

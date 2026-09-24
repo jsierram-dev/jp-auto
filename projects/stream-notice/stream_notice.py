@@ -213,7 +213,7 @@ class App:
 
             game_image, source = get_game_image(self.twitch, game, BASE / config["game_images_folder"])
             print(f"Imagen del juego: {source}")
-            story = compose(BASE / config["template"], game_image, config.get("crt_effect", True),
+            story = compose(BASE / config["template"], game_image, config.get("crt_effect", False),
                             config.get("screen_fit", "contain"))
             path = save_story(story, BASE / config["output_folder"], game.name)
 

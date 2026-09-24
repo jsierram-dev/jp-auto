@@ -4,7 +4,7 @@
   "template": "story-notice.png",
   "output_folder": "output",
   "game_images_folder": "game_images",
-  "crt_effect": true,
+  "crt_effect": false,
   "screen_fit": "contain",
   "category_delay_seconds": 5,
   "destinations": {
