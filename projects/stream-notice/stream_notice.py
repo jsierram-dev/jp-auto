@@ -26,6 +26,7 @@ from compose import ScreenNotFoundError, compose, find_existing_story, save_stor
 from obs_monitor import obs_work_area
 from popup import NoticePopup
 from publish import publish
+import runtime
 from twitch_api import TwitchClient, TwitchError, find_own_images, get_online_image
 
 BASE = Path(__file__).parent
@@ -45,16 +46,18 @@ def _own_image_label(path: Path, game_name: str) -> str:
 
 
 def load_config() -> dict:
+    # Sin consola (arranque con Windows) el aviso sale en una ventana, para que no falle en silencio
     if not CONFIG_PATH.is_file():
-        sys.exit(
+        runtime.show_message(
             "Falta config.json.\n"
             "Cópialo desde config.example.json (copy config.example.json config.json) "
-            "y rellena la contraseña del WebSocket de OBS y las credenciales de Twitch."
-        )
+            "y rellena la contraseña del WebSocket de OBS y las credenciales de Twitch.")
+        sys.exit(1)
     try:
         return json.loads(CONFIG_PATH.read_text(encoding="utf-8"))
     except json.JSONDecodeError as error:
-        sys.exit(f"config.json no es un JSON válido: {error}")
+        runtime.show_message(f"config.json no es un JSON válido: {error}")
+        sys.exit(1)
 
 
 class App:
@@ -70,6 +73,8 @@ class App:
         self.ui_queue: queue.Queue = queue.Queue()
         self.popup: NoticePopup | None = None
         self.last_story: Path | None = None
+        self.obs_connected = False
+        self.tray = None
         # (juego, ruta) de la historia existente que se está enseñando en la vista previa
         self.pending_existing = None
         # (juego, [(etiqueta, imagen, origen)]) de las imágenes que se están enseñando en el selector
@@ -79,14 +84,30 @@ class App:
         # Ctrl+C en consola cierra el programa (el manejador corre en cada revisión de la cola)
         signal.signal(signal.SIGINT, lambda *_: self.root.quit())
 
-    def run(self):
+    def run(self, tray: bool = False):
         if self.test_mode:
             print("Modo prueba: simulando inicio de directo...")
             self.stream_started()
         else:
             threading.Thread(target=self._obs_loop, daemon=True).start()
+        if tray:
+            self._start_tray()
         self.root.mainloop()
+        if self.tray:
+            self.tray.stop()
         print("Saliendo.")
+
+    def _start_tray(self):
+        from tray import TrayIcon  # solo hace falta en segundo plano
+        self.tray = TrayIcon(is_connected=lambda: self.obs_connected, on_test=self.stream_started,
+                             on_quit=lambda: self._in_ui(self.root.quit),
+                             output_folder=BASE / self.config["output_folder"], log_path=runtime.LOG_PATH)
+        self.tray.start()
+
+    def _set_obs_connected(self, connected: bool):
+        self.obs_connected = connected
+        if self.tray:
+            self.tray.refresh()
 
     # --- Comunicación entre hilos ---
 
@@ -127,10 +148,12 @@ class App:
                       f"¿Contraseña incorrecta? Reintentando en {RETRY_SECONDS} s...")
             else:
                 print("Conectado a OBS. Esperando a que empiece el directo...")
+                self._set_obs_connected(True)
                 client.callback.register(self.on_stream_state_changed)
                 # El hilo de eventos de obsws-python termina cuando OBS se cierra
                 client.worker.join()
                 print("Se ha perdido la conexión con OBS.")
+                self._set_obs_connected(False)
                 attempt_started = time.monotonic()
             # En Windows, fallar contra un puerto cerrado ya tarda unos segundos: se descuentan de la espera
             time.sleep(max(0.0, RETRY_SECONDS - (time.monotonic() - attempt_started)))
@@ -294,16 +317,21 @@ class App:
 
 
 def main():
-    # Evita errores de codificación al imprimir tildes o emojis en consolas antiguas
-    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    # Todo lo que se imprime va también a logs/stream-notice.log (imprescindible sin consola)
+    runtime.setup_logging()
     # obsws-python imprime la traza completa en cada intento fallido; los mensajes propios bastan
     logging.getLogger("obsws_python").setLevel(logging.CRITICAL + 1)
 
     parser = argparse.ArgumentParser(description="Avisos de directo para OBS + Twitch.")
     parser.add_argument("--test", action="store_true", help="simula un inicio de directo sin OBS")
+    parser.add_argument("--no-tray", action="store_true", help="sin icono junto al reloj")
     args = parser.parse_args()
 
-    App(load_config(), args.test).run()
+    # Una sola copia esperando a OBS: si no, cada directo sacaría dos popups
+    if not args.test and not runtime.acquire_single_instance():
+        runtime.show_message("Avisos de directo ya está en marcha (icono junto al reloj).")
+        return
+    App(load_config(), args.test).run(tray=not args.test and not args.no_tray)
 
 
 if __name__ == "__main__":
