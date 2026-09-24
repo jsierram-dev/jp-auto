@@ -203,7 +203,9 @@ class App:
 
             story = compose(BASE / config["template"], game_image, config.get("crt_effect", False),
                             config.get("screen_fit", "contain"))
-            self._publish(game, save_story(story, output_folder, game.name), source)
+            path = save_story(story, output_folder, game.name)
+            self._ui_popup("set_step", 3, "Historia creada y guardada")
+            self._publish(game, path, source)
         except Exception as error:
             self._report_error(error)
 
@@ -211,17 +213,19 @@ class App:
         try:
             self._ui_popup("set_step", 1, f"Categoría: {game.name}")
             self._ui_popup("set_step", 2, f"Historia existente del {story_date(path)}")
+            self._ui_popup("set_step", 3, "Historia reutilizada")
             print(f"Se envía la historia existente: {path.name}")
-            self._publish(game, path, f"historia del {story_date(path)}")
+            self._publish(game, path, f"historia del {story_date(path)}", reused=True)
         except Exception as error:
             self._report_error(error)
 
-    def _publish(self, game, path: Path, source: str):
+    def _publish(self, game, path: Path, source: str, reused: bool = False):
         self.last_story = path
-        failed = [result for result in publish(path, game.name, self.config) if not result.ok]
-        warning = ("Falló: " + ", ".join(f"{r.destination} ({r.message})" for r in failed)) if failed else None
-        print("¡Aviso generado!" + (f" {warning}" if warning else ""))
-        self._ui_popup("show_done", path, game.name, source, warning)
+        results = publish(path, game.name, self.config,
+                          on_progress=lambda name: self._ui_popup("set_step_text", 3, f"Enviando a {name}…"))
+        failed = [r.name for r in results if not r.ok]
+        print("¡Aviso enviado!" if not failed else f"Aviso enviado con errores en: {', '.join(failed)}")
+        self._ui_popup("show_done", path, game.name, source, results, reused)
 
     def _report_error(self, error: Exception):
         if isinstance(error, (TwitchError, ScreenNotFoundError, ValueError)):

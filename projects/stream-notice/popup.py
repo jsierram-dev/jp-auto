@@ -32,7 +32,8 @@ FONT = "Segoe UI"
 SPINNER_FRAMES = 12
 SPINNER_MS = 70
 
-STEPS = ("Leyendo la categoría de Twitch", "Buscando imagen del juego", "Generando historia")
+STEPS = ("Leyendo la categoría de Twitch", "Buscando imagen del juego", "Creando la historia",
+         "Enviando a redes sociales")
 
 
 def _shorten(text: str) -> str:
@@ -66,6 +67,15 @@ def _spinner_frames(size=16):
         frames.append(_icon(size, lambda d, s, a=start: d.arc(
             (s * .08, s * .08, s * .92, s * .92), a, a + 270, fill=PURPLE_LIGHT, width=int(s * .12))))
     return frames
+
+
+def _failed_icon(size=16):
+    def draw(d, s):
+        d.ellipse((0, 0, s - 1, s - 1), fill=RED)
+        w = int(s * .12)
+        d.line([(s * .32, s * .32), (s * .68, s * .68)], fill="white", width=w)
+        d.line([(s * .68, s * .32), (s * .32, s * .68)], fill="white", width=w)
+    return _icon(size, draw)
 
 
 def _white_dot(size=7):
@@ -128,7 +138,7 @@ class NoticePopup:
         self._progress = 0.0
 
         # Imágenes: hay que guardar referencia o tkinter las borra
-        self.icons = {"done": _done_icon(), "todo": _todo_icon(), "dot": _white_dot()}
+        self.icons = {"done": _done_icon(), "todo": _todo_icon(), "failed": _failed_icon(), "dot": _white_dot()}
         self.spinner = _spinner_frames()
         self.thumb = None
 
@@ -265,11 +275,11 @@ class NoticePopup:
         self._heading("Preparando aviso…")
 
         steps = tk.Frame(self.body, bg=BG)
-        steps.pack(anchor="w", fill="x", pady=(10, 0))
+        steps.pack(anchor="w", fill="x", pady=(6, 0))
         self.step_rows = []
         for text in STEPS:
             row = tk.Frame(steps, bg=BG)
-            row.pack(anchor="w", pady=2)
+            row.pack(anchor="w", pady=1)
             icon = tk.Label(row, image=self.icons["todo"], bg=BG)
             icon.pack(side="left")
             label = tk.Label(row, text=text, bg=BG, fg=TEXT, font=(FONT, 10))
@@ -277,7 +287,7 @@ class NoticePopup:
             self.step_rows.append((icon, label))
 
         self.progress = tk.Canvas(self.body, height=4, bg=BUTTON, highlightthickness=0)
-        self.progress.pack(fill="x", pady=(14, 0))
+        self.progress.pack(fill="x", pady=(10, 0))
         self.progress_bar = self.progress.create_rectangle(0, 0, 0, 4, fill=PURPLE, width=0)
         self._progress = 0.0
         self.set_step(0)
@@ -303,6 +313,11 @@ class NoticePopup:
             self._spin(self.step_rows[index][0], 0)
         self._animate_progress(min(1.0, (index + 0.5) / len(STEPS)))
 
+    def set_step_text(self, index: int, text: str):
+        """Cambia el texto de un paso sin avanzar (p. ej. "Enviando a Instagram…")."""
+        if self.exists() and self.working:
+            self.step_rows[index][1].config(text=text)
+
     def _spin(self, icon: tk.Label, frame: int):
         icon.config(image=self.spinner[frame % SPINNER_FRAMES])
         self._spinner_job = self.window.after(SPINNER_MS, self._spin, icon, frame + 1)
@@ -315,25 +330,47 @@ class NoticePopup:
         if abs(target - self._progress) > 0.002:
             self._progress_job = self.window.after(16, self._animate_progress, target)
 
-    def show_done(self, image_path: Path, game_name: str, source: str, warning: str | None = None):
+    def show_done(self, image_path: Path, game_name: str, source: str, results: list, reused: bool = False):
+        """Confirma que la historia está creada y cómo ha ido el envío a cada destino.
+
+        results: lista de PublishResult (name, ok, message).
+        """
         self._clear()
         self.working = False
         self.close_x.config(fg=MUTED, cursor="hand2")
+        failed = [r for r in results if not r.ok]
+        if not results:
+            title = "¡Historia creada!" if not reused else "Historia lista"
+        elif not failed:
+            title = "¡Historia enviada!"
+        elif len(failed) == len(results):
+            title = "No se pudo enviar"
+        else:
+            title = "Enviada con errores"
+
         result = tk.Frame(self.body, bg=BG)
         result.pack(anchor="w", fill="x", pady=(8, 0))
         try:
             self.thumb = _thumbnail(image_path)
-            tk.Label(result, image=self.thumb, bg=BG).pack(side="left")
+            tk.Label(result, image=self.thumb, bg=BG).pack(side="left", anchor="n")
         except OSError:
             pass
         text = tk.Frame(result, bg=BG)
-        text.pack(side="left", padx=(16, 0), anchor="center", fill="x", expand=True)
-        tk.Label(text, text="¡Aviso generado!", bg=BG, fg=TEXT, font=(FONT, 15, "bold")).pack(anchor="w")
-        tk.Label(text, text=f"{game_name} · {source}", bg=BG, fg=MUTED, font=(FONT, 10),
-                 wraplength=WIDTH - 2 * PADDING - 110, justify="left").pack(anchor="w", pady=(2, 0))
-        if warning:
-            tk.Label(text, text=_shorten(warning), bg=BG, fg=ERROR_TEXT, font=(FONT, 9),
-                     wraplength=WIDTH - 2 * PADDING - 110, justify="left").pack(anchor="w", pady=(6, 0))
+        text.pack(side="left", padx=(16, 0), anchor="n", fill="x", expand=True)
+        wrap = WIDTH - 2 * PADDING - 120
+        tk.Label(text, text=title, bg=BG, fg=TEXT, font=(FONT, 15, "bold")).pack(anchor="w")
+        tk.Label(text, text=f"{game_name} · {source}", bg=BG, fg=MUTED, font=(FONT, 9),
+                 wraplength=wrap, justify="left").pack(anchor="w", pady=(0, 8))
+
+        # Una línea por cosa hecha: la historia (creada o reutilizada) y cada destino
+        rows = [(True, "Historia reutilizada" if reused else "Historia creada y guardada")]
+        rows += [(r.ok, r.name if r.ok else f"{r.name}: {r.message}") for r in results]
+        for ok, line in rows:
+            row = tk.Frame(text, bg=BG)
+            row.pack(anchor="w", fill="x", pady=1)
+            tk.Label(row, image=self.icons["done" if ok else "failed"], bg=BG).pack(side="left", anchor="n", pady=(2, 0))
+            tk.Label(row, text=_shorten(line)[:90], bg=BG, fg=TEXT if ok else ERROR_TEXT, font=(FONT, 10),
+                     wraplength=wrap - 24, justify="left").pack(side="left", padx=(6, 0))
         self._set_buttons(("Abrir carpeta", self.on_open_folder, False), ("Cerrar", self.close, True))
 
     def show_error(self, message: str):

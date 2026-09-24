@@ -5,6 +5,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+NAME = "Abrir en el PC"
+
 
 def publish(image_path: Path, game_name: str, settings: dict) -> str:
     if sys.platform == "win32":
