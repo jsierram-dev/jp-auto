@@ -58,6 +58,12 @@ python stream_notice.py
 
 Leave that console open. It connects to OBS (if OBS is closed it retries every 5 s, and reconnects if OBS is closed later), and when you press *Start Streaming* the popup shows up. Stop it with `Ctrl+C` or by closing the console. Generated stories are saved in `output/`.
 
+**6. Or start it with Windows** (recommended on the streaming PC)
+
+Double-click **`install_autostart.bat`**: it adds a shortcut to your Startup folder (no admin rights) and starts it right away, without a console. It then lives as an **icon next to the clock** (status, *Probar aviso*, stories folder, log, *Salir*), writes everything to `logs/stream-notice.log`, and only one copy can run at a time. `uninstall_autostart.bat` turns it off.
+
+📘 **Full step-by-step guide for the streaming PC:** [`docs/streaming-pc-setup.md`](docs/streaming-pc-setup.md).
+
 ### Social media (Instagram and TikTok)
 
 Both need the story at a **public URL**, so it's first uploaded to the `media` branch of this (public) repository: each publish replaces the branch with a single parentless commit holding the current story plus fixed files (TikTok's verification files, the legal docs and this README), so it never piles up old images or touches `main`.
@@ -70,13 +76,13 @@ Both need the story at a **public URL**, so it's first uploaded to the `media` b
 
 ### Moving it to another PC
 
-`git clone` brings the code, the template and the tests, but **not your credentials** (`config.json`, `tokens.json`) nor your `game_images/` and `output/`, which are git-ignored on purpose. Follow *Getting started* and copy `config.json` and `tokens.json` over, changing `obs.password` to that PC's OBS WebSocket password. Use it on one PC at a time: TikTok's refresh token rotates, so two copies refreshing on their own would invalidate each other (if that happens, run `python -m destinations.tiktok --login` again).
+`git clone` brings the code, the template and the tests, but **not your credentials** (`config.json`, `tokens.json`) nor your `game_images/` and `output/`, which are git-ignored on purpose: copy them by hand and set that PC's OBS WebSocket password. Use it on one PC at a time (TikTok's refresh token rotates). Every step, including the automatic start with Windows and troubleshooting, is in [`docs/streaming-pc-setup.md`](docs/streaming-pc-setup.md).
 
 ### Testing
 
 Every feature is verified at three levels, all in `tests/` and run with [pytest](https://docs.pytest.org/):
 
-- **Unit tests** — story composition (screen detection, fit modes, no white halo around the screen, one story per game), Twitch/IGDB logic against a simulated API (token caching and renewal, IGDB → box art fallbacks, search by name), own image matching, destinations (a failing one never stops the rest), and GitHub hosting, Instagram and TikTok against simulated APIs (token refresh, processing states, clear errors).
+- **Unit tests** — story composition (screen detection, fit modes, no white halo around the screen, one story per game), Twitch/IGDB logic against a simulated API (token caching and renewal, IGDB → box art fallbacks, search by name), own image matching, destinations (a failing one never stops the rest), GitHub hosting, Instagram and TikTok against simulated APIs (token refresh, processing states, clear errors), and background mode (timestamped log with rotation, working without a console, single instance, Startup shortcut, tray menu).
 - **Integration** — the real app, window included, against a **fake OBS** that speaks the real obs-websocket v5 protocol (hello, password challenge, stream events): reconnection, wrong password, duplicate events, every popup state, fixed size, placement on OBS's monitor, the window never freezing, existing story preview, image picker and failing destinations. It runs in its own process with temporary `game_images/` and `output/` folders.
 - **Real regression** — run before every merge: **real mouse clicks, wheel and keystrokes** (Windows API) against **real Twitch and IGDB**. Only the stream start comes from the fake OBS, so nothing ever goes live on the channel, and it only uses the *open on PC* destination, so it never posts to social media. It moves the cursor for a couple of minutes, so it only runs when asked for explicitly.
 
@@ -192,6 +198,12 @@ python stream_notice.py
 
 Deja esa consola abierta. Se conecta a OBS (si OBS está cerrado reintenta cada 5 s, y si se cierra después vuelve a conectarse solo) y, al pulsar *Iniciar transmisión*, aparece el popup. Se para con `Ctrl+C` o cerrando la consola. Las historias generadas se guardan en `output/`.
 
+**6. O que arranque con Windows** (recomendado en el PC de streaming)
+
+Doble clic en **`install_autostart.bat`**: añade un acceso directo a tu carpeta de Inicio (sin permisos de administrador) y lo arranca ya, sin consola. A partir de ahí vive como un **icono junto al reloj** (estado, *Probar aviso*, carpeta de historias, registro, *Salir*), escribe todo en `logs/stream-notice.log` y solo puede haber una copia en marcha. `uninstall_autostart.bat` lo desactiva.
+
+📘 **Guía completa paso a paso para el PC de streaming:** [`docs/streaming-pc-setup.md`](docs/streaming-pc-setup.md).
+
 ### Redes sociales (Instagram y TikTok)
 
 Las dos necesitan la historia en una **URL pública**, así que primero se sube a la rama `media` de este repositorio (público): en cada publicación la rama se sustituye por un único commit sin padres con la historia actual y los archivos fijos (los de verificación de TikTok, los documentos legales y este README), así que nunca acumula imágenes antiguas ni toca `main`.
@@ -204,13 +216,13 @@ Las dos necesitan la historia en una **URL pública**, así que primero se sube 
 
 ### Llevarlo a otro PC
 
-`git clone` trae el código, la plantilla y las pruebas, pero **no tus credenciales** (`config.json`, `tokens.json`) ni tus `game_images/` y `output/`, que git ignora a propósito. Sigue *Cómo arrancarlo* y copia `config.json` y `tokens.json`, cambiando `obs.password` por la contraseña del WebSocket del OBS de ese PC. Úsalo en un solo PC a la vez: el token de renovación de TikTok cambia al usarse, así que dos copias renovando por su cuenta se invalidarían entre sí (si pasa, vuelve a ejecutar `python -m destinations.tiktok --login`).
+`git clone` trae el código, la plantilla y las pruebas, pero **no tus credenciales** (`config.json`, `tokens.json`) ni tus `game_images/` y `output/`, que git ignora a propósito: cópialos a mano y pon la contraseña del WebSocket del OBS de ese PC. Úsalo en un solo PC a la vez (el token de renovación de TikTok cambia al usarse). Todos los pasos, incluido el arranque con Windows y qué hacer si algo falla, están en [`docs/streaming-pc-setup.md`](docs/streaming-pc-setup.md).
 
 ### Pruebas
 
 Cada funcionalidad se verifica a tres niveles, todo en `tests/` y ejecutado con [pytest](https://docs.pytest.org/):
 
-- **Unitarias** — composición de la historia (detección de la pantalla, modos de encaje, sin borde blanco alrededor de la pantalla, una historia por juego), lógica de Twitch/IGDB contra una API simulada (caché y renovación del token, IGDB → carátula como respaldo, búsqueda por nombre), búsqueda de imágenes propias, destinos (si uno falla, los demás siguen), y alojamiento en GitHub, Instagram y TikTok contra APIs simuladas (renovación de tokens, estados de procesado, errores claros).
+- **Unitarias** — composición de la historia (detección de la pantalla, modos de encaje, sin borde blanco alrededor de la pantalla, una historia por juego), lógica de Twitch/IGDB contra una API simulada (caché y renovación del token, IGDB → carátula como respaldo, búsqueda por nombre), búsqueda de imágenes propias, destinos (si uno falla, los demás siguen), alojamiento en GitHub, Instagram y TikTok contra APIs simuladas (renovación de tokens, estados de procesado, errores claros), y el modo en segundo plano (registro con fecha y rotación, funcionar sin consola, una sola copia, acceso directo de Inicio, menú del icono).
 - **Integración** — la app real, con su ventana, contra un **OBS falso** que habla el protocolo real de obs-websocket v5 (saludo, contraseña, eventos de directo): reconexión, contraseña incorrecta, eventos duplicados, todos los estados del popup, tamaño fijo, posición en el monitor de OBS, que la ventana nunca se congele, vista previa de historia existente, selector de imagen y destinos que fallan. Corre en su propio proceso con carpetas temporales de `game_images/` y `output/`.
 - **Regresión real** — antes de cada merge: **clicks, rueda y teclas reales** del ratón y el teclado (API de Windows) contra **Twitch e IGDB reales**. Solo el inicio de directo sale del OBS falso, así que nunca se emite en el canal, y solo usa el destino *abrir en el PC*, así que nunca publica en redes. Mueve el cursor durante un par de minutos, así que solo se ejecuta si se pide expresamente.
 
