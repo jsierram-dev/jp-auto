@@ -30,7 +30,7 @@ def test_un_destino_roto_no_para_a_los_demas(monkeypatch, tmp_path):
     results = publish.publish(tmp_path / "x.jpg", "Fortnite", config, on_progress=progress.append)
     assert [(r.name, r.ok) for r in results] == [("Instagram", True), ("TikTok", False), ("Discord", True)]
     assert results[1].message == "token caducado"
-    assert progress == ["Instagram", "TikTok", "Discord"]
+    assert progress == ["Enviando a Instagram…", "Enviando a TikTok…", "Enviando a Discord…"]
 
 
 def test_modulo_inexistente_falla_con_su_clave_como_nombre(tmp_path):

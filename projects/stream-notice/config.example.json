@@ -8,7 +8,21 @@
   "screen_fit": "cover",
   "reuse_existing_story": true,
   "category_delay_seconds": 5,
+  "hosting": {
+    "github_token": "TU_TOKEN_DE_GITHUB",
+    "repo": "jsierram-dev/jp-auto",
+    "branch": "media",
+    "static_files": {}
+  },
   "destinations": {
-    "open_image": { "enabled": true }
+    "open_image": { "enabled": true },
+    "instagram": { "enabled": false, "access_token": "TU_TOKEN_DE_INSTAGRAM" },
+    "tiktok": {
+      "enabled": false,
+      "client_key": "TU_CLIENT_KEY_DE_TIKTOK",
+      "client_secret": "TU_CLIENT_SECRET_DE_TIKTOK",
+      "title": "¡En directo! {game}",
+      "description": ""
+    }
   }
 }

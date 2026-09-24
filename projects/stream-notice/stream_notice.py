@@ -278,7 +278,7 @@ class App:
     def _publish(self, game, path: Path, source: str, reused: bool = False):
         self.last_story = path
         results = publish(path, game.name, self.config,
-                          on_progress=lambda name: self._ui_popup("set_step_text", 3, f"Enviando a {name}…"))
+                          on_progress=lambda text: self._ui_popup("set_step_text", 3, text))
         failed = [r.name for r in results if not r.ok]
         print("¡Aviso enviado!" if not failed else f"Aviso enviado con errores en: {', '.join(failed)}")
         self._ui_popup("show_done", path, game.name, source, results, reused)

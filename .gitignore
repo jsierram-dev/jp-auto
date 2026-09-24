@@ -9,6 +9,8 @@ venv/
 
 # Local config with credentials (each project ships a config.example.json)
 config.json
+# Tokens the programs refresh on their own
+tokens.json
 
 # Generated output
 output/
