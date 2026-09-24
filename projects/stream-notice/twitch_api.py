@@ -8,14 +8,10 @@ from io import BytesIO
 from pathlib import Path
 
 import requests
-import truststore
 from PIL import Image
 
+import tls  # noqa: F401 (certificados de Windows, por los antivirus que analizan HTTPS)
 from compose import slugify
-
-# Usar el almacén de certificados de Windows (como el navegador) y no solo el de certifi:
-# los antivirus que analizan HTTPS (p. ej. Avast) firman con su propia raíz, que solo está en Windows
-truststore.inject_into_ssl()
 
 TOKEN_URL = "https://id.twitch.tv/oauth2/token"
 HELIX_URL = "https://api.twitch.tv/helix"

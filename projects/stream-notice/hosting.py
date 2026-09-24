@@ -10,6 +10,8 @@ from pathlib import Path
 
 import requests
 
+import tls  # noqa: F401 (certificados de Windows, por los antivirus que analizan HTTPS)
+
 API = "https://api.github.com"
 RAW = "https://raw.githubusercontent.com"
 TIMEOUT = 20

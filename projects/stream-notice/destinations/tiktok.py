@@ -23,6 +23,7 @@ from pathlib import Path
 import requests
 
 import token_store
+import tls  # noqa: F401 (certificados de Windows, por los antivirus que analizan HTTPS)
 
 NAME = "TikTok (borrador)"
 AUTHORIZE_URL = "https://www.tiktok.com/v2/auth/authorize/"

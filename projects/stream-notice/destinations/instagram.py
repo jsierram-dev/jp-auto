@@ -11,6 +11,7 @@ from pathlib import Path
 import requests
 
 import token_store
+import tls  # noqa: F401 (certificados de Windows, por los antivirus que analizan HTTPS)
 
 NAME = "Instagram"
 API = "https://graph.instagram.com"
