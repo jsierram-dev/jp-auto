@@ -2,6 +2,7 @@
 
 import re
 import sys
+import unicodedata
 from datetime import datetime
 from pathlib import Path
 
@@ -28,8 +29,10 @@ class ScreenNotFoundError(Exception):
 
 
 def slugify(name: str) -> str:
-    """'Fortnite' → 'fortnite', 'Grand Theft Auto V' → 'grand-theft-auto-v'."""
-    return re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")
+    """'Fortnite' → 'fortnite', 'Grand Theft Auto V' → 'grand-theft-auto-v', 'Pokémon' → 'pokemon'."""
+    # Quitar tildes antes, para que "é" quede como "e" y no como guion
+    ascii_name = unicodedata.normalize("NFKD", name).encode("ascii", "ignore").decode()
+    return re.sub(r"[^a-z0-9]+", "-", ascii_name.lower()).strip("-")
 
 
 def detect_screen_mask(template: Image.Image) -> Image.Image:

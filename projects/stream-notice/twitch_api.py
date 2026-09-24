@@ -154,6 +154,7 @@ def get_game_image(client: TwitchClient, game: Game, own_images_folder: Path) ->
     own = find_own_image(game.name, own_images_folder)
     if own:
         return Image.open(own).convert("RGB"), f"imagen propia ({own.name})"
+    print(f"Sin imagen propia. Para usar una, guárdala como {own_images_folder.name}/{slugify(game.name)}.png")
 
     try:
         for url in client.get_igdb_image_urls(game):
