@@ -4,6 +4,7 @@ import io
 import re
 import subprocess
 import sys
+import uuid
 from pathlib import Path
 
 import pytest
@@ -61,8 +62,10 @@ def test_registro_rota_al_pasar_del_limite(tmp_path, monkeypatch, restore_stream
 
 @windows_only
 def test_una_sola_copia_a_la_vez():
+    # Nombre propio: la prueba no depende de si el programa real está en marcha
+    name = rf"Local\jp-auto-stream-notice-test-{uuid.uuid4().hex}"
     code = ("import sys, time; sys.path.insert(0, r'%s'); import runtime; "
-            "print(runtime.acquire_single_instance(), flush=True); time.sleep(4)") % PROJECT
+            "print(runtime.acquire_single_instance(%r), flush=True); time.sleep(4)") % (PROJECT, name)
     first = subprocess.Popen([sys.executable, "-c", code], stdout=subprocess.PIPE, text=True)
     try:
         assert first.stdout.readline().strip() == "True"

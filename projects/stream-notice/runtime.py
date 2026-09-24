@@ -69,12 +69,12 @@ def has_console() -> bool:
     return sys.__stdout__ is not None
 
 
-def acquire_single_instance() -> bool:
+def acquire_single_instance(name: str = MUTEX_NAME) -> bool:
     """True si esta es la única copia en marcha; False si ya había otra."""
     global _mutex_handle
     if sys.platform != "win32":
         return True
-    _mutex_handle = ctypes.windll.kernel32.CreateMutexW(None, False, MUTEX_NAME)
+    _mutex_handle = ctypes.windll.kernel32.CreateMutexW(None, False, name)
     return ctypes.windll.kernel32.GetLastError() != _ERROR_ALREADY_EXISTS
 
 
