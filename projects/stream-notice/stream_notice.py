@@ -19,19 +19,30 @@ import traceback
 from pathlib import Path
 
 import obsws_python as obs
+from PIL import Image
 from obsws_python.error import OBSSDKError
 
-from compose import ScreenNotFoundError, compose, find_existing_story, save_story, story_date
+from compose import ScreenNotFoundError, compose, find_existing_story, save_story, slugify, story_date
 from obs_monitor import obs_work_area
 from popup import NoticePopup
 from publish import publish
-from twitch_api import TwitchClient, TwitchError, get_game_image
+from twitch_api import TwitchClient, TwitchError, find_own_images, get_online_image
 
 BASE = Path(__file__).parent
 CONFIG_PATH = BASE / "config.json"
 RETRY_SECONDS = 5
 POLL_MS = 300
 STREAM_STARTED = "OBS_WEBSOCKET_OUTPUT_STARTED"
+
+def _own_image_label(path: Path, game_name: str) -> str:
+    """Etiqueta corta para el selector: el nombre sin la parte del juego.
+
+    the-callisto-protocol-jacob.jpg → "Tuya: jacob"; the-callisto-protocol.png → "Tuya";
+    the-callisto-protocol/portada.jpg → "Tuya: portada".
+    """
+    rest = slugify(path.stem).replace(slugify(game_name), "").strip("-")
+    return f"Tuya: {rest}" if rest else "Tuya"
+
 
 def load_config() -> dict:
     if not CONFIG_PATH.is_file():
@@ -61,6 +72,8 @@ class App:
         self.last_story: Path | None = None
         # (juego, ruta) de la historia existente que se está enseñando en la vista previa
         self.pending_existing = None
+        # (juego, [(etiqueta, imagen, origen)]) de las imágenes que se están enseñando en el selector
+        self.pending_choice = None
 
         self.root.after(POLL_MS, self._poll_queue)
         # Ctrl+C en consola cierra el programa (el manejador corre en cada revisión de la cola)
@@ -197,17 +210,60 @@ class App:
                     self._ui_popup("show_preview", existing, game.name, story_date(existing))
                     return
 
-            game_image, source = get_game_image(self.twitch, game, BASE / config["game_images_folder"])
-            print(f"Imagen del juego: {source}")
-            self._ui_popup("set_step", 2, f"Imagen del juego: {source}")
+            images_folder = BASE / config["game_images_folder"]
+            own = find_own_images(game.name, images_folder)
+            if not own:
+                print(f"Sin imágenes propias. Para usar una, guárdala en {images_folder.name}/ "
+                      f"con «{slugify(game.name)}» en el nombre.")
+                game_image, source = get_online_image(self.twitch, game)
+                self._compose_and_publish(game, game_image, source)
+                return
 
-            story = compose(BASE / config["template"], game_image, config.get("crt_effect", False),
-                            config.get("screen_fit", "contain"))
-            path = save_story(story, output_folder, game.name)
-            self._ui_popup("set_step", 3, "Historia creada y guardada")
-            self._publish(game, path, source)
+            # Hay imágenes propias: se enseñan junto a la de internet y el usuario elige
+            options = []
+            for path in sorted(own, key=lambda p: _own_image_label(p, game.name) != "Tuya"):
+                try:
+                    name = path.relative_to(images_folder).as_posix()
+                    options.append((_own_image_label(path, game.name), Image.open(path).convert("RGB"),
+                                    f"imagen propia ({name})"))
+                except OSError as error:
+                    print(f"Aviso: no se pudo abrir {path.name}: {error}")
+            try:
+                online_image, online_source = get_online_image(self.twitch, game)
+                options.append((online_source[0].upper() + online_source[1:], online_image, online_source))
+            except TwitchError as error:
+                print(f"Aviso: sin imagen de internet, solo las propias. {error}")
+            if not options:
+                raise TwitchError(f"No se ha podido abrir ninguna imagen para «{game.name}».")
+            print(f"Imágenes para elegir: {[label for label, _, _ in options]}")
+            self.pending_choice = (game, options)
+            self._ui_popup("show_picker", game.name, [(label, image) for label, image, _ in options], self._pick_image)
         except Exception as error:
             self._report_error(error)
+
+    def _pick_image(self, index: int):
+        """El usuario ha elegido una imagen en el selector (hilo de la interfaz)."""
+        game, options = self.pending_choice
+        _, image, source = options[index]
+        self.popup.show_working()
+        threading.Thread(target=self._compose_chosen, args=(game, image, source), daemon=True).start()
+
+    def _compose_chosen(self, game, image, source: str):
+        try:
+            self._ui_popup("set_step", 1, f"Categoría: {game.name}")
+            self._compose_and_publish(game, image, source)
+        except Exception as error:
+            self._report_error(error)
+
+    def _compose_and_publish(self, game, game_image, source: str):
+        print(f"Imagen del juego: {source}")
+        self._ui_popup("set_step", 2, f"Imagen del juego: {source}")
+        config = self.config
+        story = compose(BASE / config["template"], game_image, config.get("crt_effect", False),
+                        config.get("screen_fit", "contain"))
+        path = save_story(story, BASE / config["output_folder"], game.name)
+        self._ui_popup("set_step", 3, "Historia creada y guardada")
+        self._publish(game, path, source)
 
     def _publish_existing(self, game, path: Path):
         try:

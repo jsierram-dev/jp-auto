@@ -5,7 +5,7 @@ import tkinter as tk
 from pathlib import Path
 from typing import Callable
 
-from PIL import Image, ImageDraw, ImageTk
+from PIL import Image, ImageDraw, ImageOps, ImageTk
 
 WIDTH, HEIGHT = 440, 320
 # Solo la vista previa de una historia ya existente crece, para verla en grande
@@ -90,6 +90,15 @@ def _thumbnail(path: Path, height=128) -> ImageTk.PhotoImage:
     ImageDraw.Draw(mask).rounded_rectangle((0, 0, width * 4 - 1, height * 4 - 1), radius=24, fill=255)
     image.putalpha(mask.resize((width, height), Image.LANCZOS))
     return ImageTk.PhotoImage(image)
+
+
+def _option_thumbnail(image: Image.Image, size=(184, 104)) -> ImageTk.PhotoImage:
+    """Miniatura 16:9 recortada tipo "cover", con esquinas redondeadas, para el selector de imagen."""
+    thumb = ImageOps.fit(image.convert("RGB"), size, Image.LANCZOS)
+    mask = Image.new("L", (size[0] * 4, size[1] * 4), 0)
+    ImageDraw.Draw(mask).rounded_rectangle((0, 0, size[0] * 4 - 1, size[1] * 4 - 1), radius=24, fill=255)
+    thumb.putalpha(mask.resize(size, Image.LANCZOS))
+    return ImageTk.PhotoImage(thumb)
 
 
 def _round_corners(window: tk.Toplevel):
@@ -221,6 +230,7 @@ class NoticePopup:
 
     def _clear(self, height: int = HEIGHT):
         self._resize(height)
+        self.window.unbind_all("<MouseWheel>")
         self._stop_animations()
         for container in (self.body, self.footer):
             for child in container.winfo_children():
@@ -402,3 +412,47 @@ class NoticePopup:
         except OSError:
             tk.Label(self.body, text="(no se pudo cargar la imagen)", bg=BG, fg=ERROR_TEXT, font=(FONT, 10)).pack()
         self._set_buttons(("Generar nueva", self.on_generate_new, False), ("Enviar esta", self.on_send_existing, True))
+
+    def show_picker(self, game_name: str, options: list[tuple[str, Image.Image]], on_pick: Callable[[int], None]):
+        """Elegir la imagen del juego entre las propias y la de internet. options: [(etiqueta, imagen)]."""
+        self._clear(PREVIEW_HEIGHT)
+        self.working = False
+        self.close_x.config(fg=MUTED, cursor="hand2")
+        tk.Label(self.body, text=f"Elige la imagen de {game_name}", bg=BG, fg=TEXT, font=(FONT, 14, "bold"),
+                 wraplength=WIDTH - 2 * PADDING, justify="left").pack(anchor="w", pady=(8, 0))
+        tk.Label(self.body, text="Haz clic en una para crear la historia con ella.", bg=BG, fg=MUTED,
+                 font=(FONT, 10)).pack(anchor="w", pady=(2, 10))
+
+        # Lista desplazable con la rueda del ratón (por si hay muchas imágenes)
+        canvas = tk.Canvas(self.body, bg=BG, highlightthickness=0)
+        canvas.pack(fill="both", expand=True)
+        grid = tk.Frame(canvas, bg=BG)
+        canvas.create_window((0, 0), window=grid, anchor="nw")
+        grid.columnconfigure((0, 1), weight=1, uniform="options")
+
+        self.option_thumbs = []
+        for index, (label, image) in enumerate(options):
+            tile = tk.Frame(grid, bg=BG, highlightthickness=2, highlightbackground=BG, highlightcolor=BG, cursor="hand2")
+            tile.grid(row=index // 2, column=index % 2, padx=(0 if index % 2 == 0 else 6, 6 if index % 2 == 0 else 0),
+                      pady=(0, 10), sticky="nw")
+            thumb = _option_thumbnail(image)
+            self.option_thumbs.append(thumb)
+            picture = tk.Label(tile, image=thumb, bg=BG, cursor="hand2")
+            picture.pack()
+            caption = tk.Label(tile, text=label if len(label) <= 30 else label[:29] + "…", bg=BG, fg=TEXT,
+                               font=(FONT, 9), anchor="w", cursor="hand2")
+            caption.pack(fill="x", padx=2, pady=(3, 1))
+            for widget in (tile, picture, caption):
+                widget.bind("<Enter>", lambda _, t=tile: t.config(highlightbackground=PURPLE))
+                widget.bind("<Leave>", lambda _, t=tile: t.config(highlightbackground=BG))
+                widget.bind("<ButtonRelease-1>", lambda _, i=index: on_pick(i))
+
+        def update_scroll(_=None):
+            canvas.configure(scrollregion=canvas.bbox("all"))
+        grid.bind("<Configure>", update_scroll)
+        def on_wheel(event):
+            if grid.winfo_height() > canvas.winfo_height():
+                canvas.yview_scroll(-1 if event.delta > 0 else 1, "units")
+        self.window.bind_all("<MouseWheel>", on_wheel)
+        self.picker_canvas = canvas
+        self._set_buttons(("Cancelar", self.close, False))

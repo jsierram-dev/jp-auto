@@ -71,23 +71,26 @@ python compose.py [image]
 - Twitch Dark style, always on top and with a **fixed size**, so nothing jumps between states: question → progress (category → game image → story created → sending to social media, naming each destination as it goes) → done or error (with *Retry*).
 - The done screen confirms the story was created (or reused) and lists every destination with ✓ or ✗ plus the reason if it failed, next to the story thumbnail and *Open folder*.
 - Keyboard: `Enter` = main button, `Esc` = No / Close. It can't be closed while the story is being generated.
-- **If there's already a story for that game** in `output/` (the most recent one), it's shown large first (the popup grows only for this preview): *Send this one* publishes it as is, without generating anything; *Generate new* builds a fresh one and sends it. Turn it off with `"reuse_existing_story": false`.
+- **If there's already a story for that game** in `output/` (the most recent one), it's shown large first (the popup grows only for this preview): *Send this one* publishes it as is, without generating anything; *Generate new* builds a fresh one (going through the image picker if you have own images) and sends it. Turn it off with `"reuse_existing_story": false`.
 
 ### Game image
 
-Picked in this order:
-1. **Your own image** in `game_images/`, named after the Twitch category as a *slug*: lowercase, accents removed, anything that isn't a letter or number becomes `-`. Extension `.png`, `.jpg`, `.jpeg` or `.webp`.
+**Your own images** go in `game_images/`. Any image (`.png`, `.jpg`, `.jpeg`, `.webp`) whose name **contains** the game name counts, and so does any image inside a folder whose name contains it. The name is compared as a *slug* (lowercase, no accents, anything that isn't a letter or number becomes `-`), so capitals, spaces and accents don't matter.
 
-   | Twitch category | File |
-   |---|---|
-   | Fortnite | `fortnite.png` |
-   | Grand Theft Auto V | `grand-theft-auto-v.jpg` |
-   | Pokémon Legends: Z-A | `pokemon-legends-z-a.png` |
-   | EA SPORTS FC 25 | `ea-sports-fc-25.webp` |
+```
+game_images/
+  fortnite.png                          → Fortnite
+  the-callisto-protocol.png             → The Callisto Protocol
+  the-callisto-protocol-jacob.jpg       → The Callisto Protocol
+  the-callisto-protocol/portada.jpg     → The Callisto Protocol
+  Pokémon Legends Z-A.png               → Pokémon Legends: Z-A
+```
 
-   If there's no own image, the console prints the exact name to use.
-2. IGDB promotional artwork (or a screenshot if there's none).
-3. Twitch box art (vertical, gets cropped).
+- **If you have own images for the game**, the popup lets you **choose** between all of them and the internet image (IGDB artwork, or the Twitch box art if there's none). If the internet image can't be downloaded, you choose among your own.
+- **If you don't**, the internet image is used directly, and the console tells you which name to use to add one.
+- Heads-up: since the match is "contains", a game can pick up images of another one with a longer name (*Portal* also shows `portal-2.png`). The picker shows them before anything is generated.
+
+**`output/` keeps only the latest story of each game**: saving a new one deletes the previous ones of that game.
 
 ### Configuration (`config.json`)
 
@@ -171,23 +174,26 @@ python compose.py [imagen]
 - Estilo Twitch Dark, siempre encima y de **tamaño fijo**, para que nada salte entre estados: pregunta → progreso (categoría → imagen del juego → historia creada → envío a redes sociales, diciendo a qué destino está enviando) → listo o error (con *Reintentar*).
 - La pantalla final confirma que la historia se ha creado (o reutilizado) y lista cada destino con ✓ o ✗ y el motivo si falló, junto a la miniatura de la historia y *Abrir carpeta*.
 - Teclado: `Enter` = botón principal, `Esc` = No / Cerrar. No se puede cerrar mientras se genera la historia.
-- **Si ya hay una historia de ese juego** en `output/` (la más reciente), primero se enseña en grande (el popup crece solo para esta vista previa): *Enviar esta* la publica tal cual, sin generar nada; *Generar nueva* crea otra y la envía. Se desactiva con `"reuse_existing_story": false`.
+- **Si ya hay una historia de ese juego** en `output/` (la más reciente), primero se enseña en grande (el popup crece solo para esta vista previa): *Enviar esta* la publica tal cual, sin generar nada; *Generar nueva* crea otra (pasando por el selector de imagen si tienes imágenes propias) y la envía. Se desactiva con `"reuse_existing_story": false`.
 
 ### Imagen del juego
 
-Se elige en este orden:
-1. **Imagen propia** en `game_images/`, con el nombre de la categoría de Twitch en formato *slug*: minúsculas, sin tildes, y todo lo que no sea letra o número pasa a `-`. Extensión `.png`, `.jpg`, `.jpeg` o `.webp`.
+**Tus imágenes propias** van en `game_images/`. Cuenta cualquier imagen (`.png`, `.jpg`, `.jpeg`, `.webp`) cuyo nombre **contenga** el nombre del juego, y cualquier imagen dentro de una carpeta cuyo nombre lo contenga. El nombre se compara en formato *slug* (minúsculas, sin tildes, y todo lo que no sea letra o número pasa a `-`), así que mayúsculas, espacios y tildes dan igual.
 
-   | Categoría en Twitch | Archivo |
-   |---|---|
-   | Fortnite | `fortnite.png` |
-   | Grand Theft Auto V | `grand-theft-auto-v.jpg` |
-   | Pokémon Legends: Z-A | `pokemon-legends-z-a.png` |
-   | EA SPORTS FC 25 | `ea-sports-fc-25.webp` |
+```
+game_images/
+  fortnite.png                          → Fortnite
+  the-callisto-protocol.png             → The Callisto Protocol
+  the-callisto-protocol-jacob.jpg       → The Callisto Protocol
+  the-callisto-protocol/portada.jpg     → The Callisto Protocol
+  Pokémon Legends Z-A.png               → Pokémon Legends: Z-A
+```
 
-   Si no hay imagen propia, la consola te dice el nombre exacto que tiene que tener.
-2. Arte promocional de IGDB (o una captura si no hay).
-3. Carátula de Twitch (vertical, se recorta).
+- **Si tienes imágenes propias del juego**, el popup te deja **elegir** entre todas ellas y la de internet (arte de IGDB o, si no hay, la carátula de Twitch). Si la de internet no se puede descargar, eliges entre las tuyas.
+- **Si no tienes**, se usa directamente la de internet, y la consola te dice con qué nombre guardarla para añadir una.
+- Ojo: como se busca "que contenga el nombre", un juego puede coger imágenes de otro con un nombre más largo (*Portal* también enseña `portal-2.png`). El selector te las muestra antes de generar nada.
+
+**En `output/` solo se queda la última historia de cada juego**: al guardar una nueva se borran las anteriores de ese juego.
 
 ### Configuración (`config.json`)
 
