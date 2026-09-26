@@ -60,7 +60,7 @@ python twitch_api.py
 python stream_notice.py --test
 ```
 
-If you answer **"Sí, enviar"** in the test, it really publishes: an Instagram Story and a TikTok draft.
+If you answer **"Sí, enviar"** in the test, it really publishes: an Instagram Story, a TikTok draft and a WhatsApp channel post.
 
 ### 6. Start it with Windows
 
@@ -96,6 +96,8 @@ Use it on **one PC only**. TikTok's refresh token changes every time it's used, 
 | Icon stays on "Esperando a OBS…" | OBS closed, WebSocket server disabled, or wrong password (step 4). The log says which. |
 | Instagram ✗ "token ha caducado" | More than 60 days without using it: generate a new token in Meta for Developers (see README) and put it in `config.json`. |
 | TikTok ✗ "no está autorizado" / "ha caducado" | Run `python -m destinations.tiktok --login` once (the browser opens to accept). |
+| Canal de WhatsApp ✗ "vuelve a escanear el QR" | The phone link expired (phone offline ~14 days or logged out): in the Whapi panel, scan the channel's QR again from *Linked devices*. |
+| Canal de WhatsApp ✗ "límite del plan gratuito" | The free Whapi sandbox limits were reached; it didn't publish. Wait for the next month (don't upgrade). |
 | Certificate errors (SSL) | Handled automatically with Windows certificates (antivirus such as Avast). If it persists, update `pip install -r requirements.txt`. |
 
 ---
@@ -156,7 +158,7 @@ python twitch_api.py
 python stream_notice.py --test
 ```
 
-Si en la prueba respondes **"Sí, enviar"**, publica de verdad: historia en Instagram y borrador en TikTok.
+Si en la prueba respondes **"Sí, enviar"**, publica de verdad: historia en Instagram, borrador en TikTok y aviso en el canal de WhatsApp.
 
 ### 6. Arrancarlo con Windows
 
@@ -192,4 +194,6 @@ Para quitar el arranque automático: **`uninstall_autostart.bat`** (y *Salir* de
 | El icono se queda en "Esperando a OBS…" | OBS cerrado, servidor WebSocket desactivado o contraseña incorrecta (paso 4). El registro dice cuál. |
 | Instagram ✗ "token ha caducado" | Más de 60 días sin usarlo: genera un token nuevo en Meta for Developers (ver README) y ponlo en `config.json`. |
 | TikTok ✗ "no está autorizado" / "ha caducado" | Ejecuta una vez `python -m destinations.tiktok --login` (se abre el navegador para aceptar). |
+| Canal de WhatsApp ✗ "vuelve a escanear el QR" | La vinculación con el móvil caducó (móvil ~14 días sin conexión o sesión cerrada): en el panel de Whapi, escanea otra vez el QR del canal desde *Dispositivos vinculados*. |
+| Canal de WhatsApp ✗ "límite del plan gratuito" | Se alcanzaron los límites del sandbox gratuito de Whapi; no se ha publicado. Espera al mes siguiente (no cambies de plan). |
 | Errores de certificado (SSL) | Se resuelven solos con los certificados de Windows (antivirus como Avast). Si siguen, actualiza con `pip install -r requirements.txt`. |
