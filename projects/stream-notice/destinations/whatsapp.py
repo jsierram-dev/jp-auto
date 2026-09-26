@@ -49,8 +49,9 @@ def publish(image_path: Path, game_name: str, settings: dict, session: requests.
     channel_id = _setting(settings, "channel_id")
     if not channel_id.endswith("@newsletter"):
         raise WhatsAppError("destinations.whatsapp.channel_id debe tener la forma 1234567890@newsletter.")
-    caption = settings.get("caption", DEFAULT_CAPTION).format(game=game_name,
-                                                              link=settings.get("link", DEFAULT_LINK))
+    # replace() y no format(): un pie de foto propio con llaves sueltas (":-{ }") no debe romper el aviso
+    caption = (str(settings.get("caption", DEFAULT_CAPTION))
+               .replace("{game}", game_name).replace("{link}", str(settings.get("link", DEFAULT_LINK))))
 
     session = session or requests.Session()
     mime = mimetypes.guess_type(image_path.name)[0] or "image/jpeg"
@@ -66,9 +67,12 @@ def publish(image_path: Path, game_name: str, settings: dict, session: requests.
         body = response.json()
     except ValueError:
         body = {}
+    if not isinstance(body, dict):
+        body = {}
     if not response.ok or not body.get("sent", False):
         if response.status_code in ERRORS:
             raise WhatsAppError(ERRORS[response.status_code])
-        detail = (body.get("error") or {}).get("message") or f"HTTP {response.status_code}"
+        error = body.get("error")
+        detail = (error.get("message") if isinstance(error, dict) else error) or f"HTTP {response.status_code}"
         raise WhatsAppError(f"Whapi: {detail}")
     return "aviso publicado en el canal"

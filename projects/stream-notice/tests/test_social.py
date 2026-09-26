@@ -356,6 +356,23 @@ def test_whatsapp_error_desconocido_muestra_el_mensaje_de_whapi(story):
         whatsapp.publish(story, "Fortnite", WA, WhapiSession(500, {"error": {"message": "algo raro"}}))
 
 
+@pytest.mark.parametrize("game, caption, expected", [
+    ("Tetris", "Hoy {game} :-{ }", "Hoy Tetris :-{ }"),
+    ("Tetris {Remix}", "{game} {link}", "Tetris {Remix} https://twitch.tv/jscorpiodv"),
+    ("Tetris", "🔴 {game}", "🔴 Tetris"),
+])
+def test_whatsapp_pie_con_llaves_o_emoji_no_rompe(story, game, caption, expected):
+    session = WhapiSession()
+    whatsapp.publish(story, game, {**WA, "caption": caption, "link": "https://twitch.tv/jscorpiodv"}, session)
+    assert session.calls[0][2]["caption"] == expected
+
+
+@pytest.mark.parametrize("body", [{"error": "texto suelto"}, ["raro"], "raro"])
+def test_whatsapp_error_con_formato_inesperado_da_mensaje_claro(story, body):
+    with pytest.raises(whatsapp.WhatsAppError, match="Whapi"):
+        whatsapp.publish(story, "Fortnite", WA, WhapiSession(500, body))
+
+
 def test_whatsapp_respuesta_sin_enviar(story):
     with pytest.raises(whatsapp.WhatsAppError, match="Whapi"):
         whatsapp.publish(story, "Fortnite", WA, WhapiSession(200, {"sent": False}))
