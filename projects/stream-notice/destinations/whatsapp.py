@@ -38,7 +38,8 @@ class WhatsAppError(Exception):
 
 
 def _setting(settings: dict, key: str) -> str:
-    value = str(settings.get(key, "")).strip()
+    value = settings.get(key)
+    value = "" if value is None else str(value).strip()
     if not value or value.startswith("TU_"):
         raise WhatsAppError(f"Falta destinations.whatsapp.{key} en config.json.")
     return value
@@ -50,8 +51,11 @@ def publish(image_path: Path, game_name: str, settings: dict, session: requests.
     if not channel_id.endswith("@newsletter"):
         raise WhatsAppError("destinations.whatsapp.channel_id debe tener la forma 1234567890@newsletter.")
     # replace() y no format(): un pie de foto propio con llaves sueltas (":-{ }") no debe romper el aviso
-    caption = (str(settings.get("caption", DEFAULT_CAPTION))
-               .replace("{game}", game_name).replace("{link}", str(settings.get("link", DEFAULT_LINK))))
+    caption = settings.get("caption")
+    link = settings.get("link")
+    caption = DEFAULT_CAPTION if caption is None else str(caption)
+    link = DEFAULT_LINK if link is None else str(link)
+    caption = caption.replace("{game}", game_name).replace("{link}", link)
 
     session = session or requests.Session()
     mime = mimetypes.guess_type(image_path.name)[0] or "image/jpeg"

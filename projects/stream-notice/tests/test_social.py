@@ -332,6 +332,8 @@ def test_whatsapp_no_necesita_la_url_publica():
     ({**WA, "token": "TU_TOKEN_DE_WHAPI"}, "whatsapp.token"),
     ({**WA, "channel_id": ""}, "whatsapp.channel_id"),
     ({**WA, "channel_id": "34600000000"}, "@newsletter"),
+    ({**WA, "token": None}, "whatsapp.token"),
+    ({**WA, "channel_id": None}, "whatsapp.channel_id"),
 ])
 def test_whatsapp_configuracion_incompleta_no_llama_a_la_api(story, settings, match):
     session = WhapiSession()
@@ -365,6 +367,13 @@ def test_whatsapp_pie_con_llaves_o_emoji_no_rompe(story, game, caption, expected
     session = WhapiSession()
     whatsapp.publish(story, game, {**WA, "caption": caption, "link": "https://twitch.tv/jscorpiodv"}, session)
     assert session.calls[0][2]["caption"] == expected
+
+
+def test_whatsapp_pie_y_enlace_nulos_usan_los_de_por_defecto(story):
+    session = WhapiSession()
+    whatsapp.publish(story, "Tetris", {**WA, "caption": None, "link": None}, session)
+    assert session.calls[0][2]["caption"] == whatsapp.DEFAULT_CAPTION.replace("{game}", "Tetris").replace(
+        "{link}", whatsapp.DEFAULT_LINK)
 
 
 @pytest.mark.parametrize("body", [{"error": "texto suelto"}, ["raro"], "raro"])
