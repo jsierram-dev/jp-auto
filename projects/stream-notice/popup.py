@@ -383,6 +383,12 @@ class NoticePopup:
                      wraplength=wrap - 24, justify="left").pack(side="left", padx=(6, 0))
         self._set_buttons(("Abrir carpeta", self.on_open_folder, False), ("Cerrar", self.close, True))
 
+        # Con errores largos la lista no cabe en el alto fijo: la ventana crece lo justo (sin salirse del monitor)
+        self.window.update_idletasks()
+        overflow = result.winfo_reqheight() + 8 - self.body.winfo_height()
+        if overflow > 0:
+            self._resize(min(HEIGHT + overflow, self.area[3] - self.area[1]))
+
     def show_error(self, message: str):
         self._clear()
         self.working = False
