@@ -43,6 +43,18 @@ def test_resultados_de_los_cuatro_destinos_caben_enteros(window, failed):
     assert content <= available
 
 
+def _texts(widget):
+    for child in widget.winfo_children():
+        if isinstance(child, tk.Label) and child.cget("text"):
+            yield child.cget("text")
+        yield from _texts(child)
+
+
+def test_el_error_largo_se_muestra_entero(window):
+    _show(*window, 1)
+    assert any(text.endswith(LONG_ERROR) for text in _texts(window[1].body))
+
+
 def test_la_ventana_solo_crece_con_errores_y_vuelve_al_alto_normal(window):
     assert _show(*window, 0)[2] == popup.HEIGHT
     assert _show(*window, 3)[2] > popup.HEIGHT
