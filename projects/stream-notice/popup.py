@@ -379,9 +379,15 @@ class NoticePopup:
             row = tk.Frame(text, bg=BG)
             row.pack(anchor="w", fill="x", pady=1)
             tk.Label(row, image=self.icons["done" if ok else "failed"], bg=BG).pack(side="left", anchor="n", pady=(2, 0))
-            tk.Label(row, text=_shorten(line)[:90], bg=BG, fg=TEXT if ok else ERROR_TEXT, font=(FONT, 10),
+            tk.Label(row, text=_shorten(line), bg=BG, fg=TEXT if ok else ERROR_TEXT, font=(FONT, 10),
                      wraplength=wrap - 24, justify="left").pack(side="left", padx=(6, 0))
         self._set_buttons(("Abrir carpeta", self.on_open_folder, False), ("Cerrar", self.close, True))
+
+        # Con errores largos la lista no cabe en el alto fijo: la ventana crece lo justo (sin salirse del monitor)
+        self.window.update_idletasks()
+        overflow = result.winfo_reqheight() + 8 - self.body.winfo_height()
+        if overflow > 0:
+            self._resize(min(HEIGHT + overflow, self.area[3] - self.area[1]))
 
     def show_error(self, message: str):
         self._clear()

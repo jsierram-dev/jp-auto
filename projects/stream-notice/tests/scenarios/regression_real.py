@@ -54,6 +54,8 @@ def main() -> int:
     for name, color in own.items():
         Image.new("RGB", (1600, 900), color).save(images / name)
     old_story = compose.save_story(compose.compose(PROJECT / config["template"], compose._test_game_image()), output, game)
+    # Fechada en el pasado: si no, en el mismo minuto se llamaría igual que la nueva y la sobrescribiría
+    old_story = old_story.rename(old_story.with_name(f"20000101_0000_{compose.slugify(game)}.jpg"))
     config["game_images_folder"], config["output_folder"] = str(images), str(output)
     real_output = PROJECT / "output"
     before_files = set(real_output.iterdir()) if real_output.is_dir() else set()
