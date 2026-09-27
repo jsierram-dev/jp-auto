@@ -6,7 +6,7 @@
 
 ## English
 
-> **Status: phases 1 and 2 working.** Verified with a real OBS stream start, real Twitch/IGDB data, a real Instagram Story and a real TikTok draft. The WhatsApp channel destination is covered by tests against a simulated Whapi API and is pending its first real post.
+> **Status: phases 1 and 2 working.** Verified with a real OBS stream start, real Twitch/IGDB data, a real Instagram Story, a real TikTok draft and a real WhatsApp channel post.
 
 When you press "Start Streaming" in OBS Studio, a popup asks whether to send notices. If you accept, it builds a story image (1080×1920) with the game from your current Twitch category placed inside the TV screen of the `story-notice.png` template, and **publishes it as an Instagram Story**, **sends it to your TikTok inbox as a draft** and **posts it to your WhatsApp channel** with the stream link (plus opening it on the PC).
 
@@ -147,7 +147,7 @@ game_images/
 
 ## Español
 
-> **Estado: fases 1 y 2 funcionando.** Verificadas con un inicio de directo real en OBS, datos reales de Twitch/IGDB, una historia real en Instagram y un borrador real en TikTok. El destino del canal de WhatsApp está cubierto por pruebas contra una API de Whapi simulada y falta su primera publicación real.
+> **Estado: fases 1 y 2 funcionando.** Verificadas con un inicio de directo real en OBS, datos reales de Twitch/IGDB, una historia real en Instagram, un borrador real en TikTok y un aviso real en un canal de WhatsApp.
 
 Cuando pulsas "Iniciar transmisión" en OBS Studio, una ventana pregunta si quieres enviar los avisos. Si aceptas, genera una imagen de historia (1080×1920) con el juego de tu categoría actual de Twitch dentro de la pantalla de la tele de la plantilla `story-notice.png`, y **la publica como historia de Instagram**, **la manda como borrador a tu bandeja de TikTok** y **la publica en tu canal de WhatsApp** con el enlace al directo (además de abrirla en el PC).
 
