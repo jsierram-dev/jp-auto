@@ -51,6 +51,16 @@ Each OBS has its own WebSocket password:
 2. **Show Connect Info** → copy the password.
 3. Paste it into `config.json` → `"obs": { "password": "..." }`.
 
+### 4b. Link WhatsApp on this PC
+
+The WhatsApp session isn't copied: each PC is linked as its own device.
+
+```bat
+python -m destinations.whatsapp --login
+```
+
+A QR opens: scan it from your phone in **WhatsApp → Linked devices → Link a device**. It then lists the channels you can post to; check that the id matches `destinations.whatsapp.channel_id` in `config.json`. On your phone, remove the old PC's device from *Linked devices*.
+
 ### 5. Check it works
 
 ```bat
@@ -96,8 +106,9 @@ Use it on **one PC only**. TikTok's refresh token changes every time it's used, 
 | Icon stays on "Esperando a OBS…" | OBS closed, WebSocket server disabled, or wrong password (step 4). The log says which. |
 | Instagram ✗ "token ha caducado" | More than 60 days without using it: generate a new token in Meta for Developers (see README) and put it in `config.json`. |
 | TikTok ✗ "no está autorizado" / "ha caducado" | Run `python -m destinations.tiktok --login` once (the browser opens to accept). |
-| Canal de WhatsApp ✗ "vuelve a escanear el QR" | The phone link expired (phone offline ~14 days or logged out): in the Whapi panel, scan the channel's QR again from *Linked devices*. |
-| Canal de WhatsApp ✗ "límite del plan gratuito" | The free Whapi sandbox limits were reached; it didn't publish. Wait for the next month (don't upgrade). |
+| Canal de WhatsApp ✗ "no está vinculado" / "ya no es válida" / "desde el móvil" | The link expired (phone offline ~14 days) or was closed from the phone: run `python -m destinations.whatsapp --login` and scan the QR again. |
+| Canal de WhatsApp ✗ "no responde" | No internet, or WhatsApp is down: nothing was posted. The other destinations still publish. |
+| Canal de WhatsApp ✗ "no ha aceptado el aviso" | Check `channel_id` (`--login` lists it) and that you're the owner or an admin of the channel. If it keeps failing, update neonize: `pip install -U neonize`. |
 | Certificate errors (SSL) | Handled automatically with Windows certificates (antivirus such as Avast). If it persists, update `pip install -r requirements.txt`. |
 
 ---
@@ -149,6 +160,16 @@ Cada OBS tiene su propia contraseña del WebSocket:
 2. **Mostrar información de conexión** → copia la contraseña.
 3. Pégala en `config.json` → `"obs": { "password": "..." }`.
 
+### 4b. Vincular WhatsApp en este PC
+
+La sesión de WhatsApp no se copia: cada PC se vincula como un dispositivo propio.
+
+```bat
+python -m destinations.whatsapp --login
+```
+
+Se abre un QR: escanéalo desde el móvil en **WhatsApp → Dispositivos vinculados → Vincular un dispositivo**. Después lista los canales en los que puedes publicar; comprueba que el id coincide con `destinations.whatsapp.channel_id` de `config.json`. En el móvil, quita el dispositivo del PC anterior en *Dispositivos vinculados*.
+
 ### 5. Comprobar que funciona
 
 ```bat
@@ -194,6 +215,7 @@ Para quitar el arranque automático: **`uninstall_autostart.bat`** (y *Salir* de
 | El icono se queda en "Esperando a OBS…" | OBS cerrado, servidor WebSocket desactivado o contraseña incorrecta (paso 4). El registro dice cuál. |
 | Instagram ✗ "token ha caducado" | Más de 60 días sin usarlo: genera un token nuevo en Meta for Developers (ver README) y ponlo en `config.json`. |
 | TikTok ✗ "no está autorizado" / "ha caducado" | Ejecuta una vez `python -m destinations.tiktok --login` (se abre el navegador para aceptar). |
-| Canal de WhatsApp ✗ "vuelve a escanear el QR" | La vinculación con el móvil caducó (móvil ~14 días sin conexión o sesión cerrada): en el panel de Whapi, escanea otra vez el QR del canal desde *Dispositivos vinculados*. |
-| Canal de WhatsApp ✗ "límite del plan gratuito" | Se alcanzaron los límites del sandbox gratuito de Whapi; no se ha publicado. Espera al mes siguiente (no cambies de plan). |
+| Canal de WhatsApp ✗ "no está vinculado" / "ya no es válida" / "desde el móvil" | La vinculación caducó (móvil ~14 días sin conexión) o se cerró desde el móvil: ejecuta `python -m destinations.whatsapp --login` y escanea otra vez el QR. |
+| Canal de WhatsApp ✗ "no responde" | Sin internet o WhatsApp caído: no se ha publicado. Los demás destinos publican igual. |
+| Canal de WhatsApp ✗ "no ha aceptado el aviso" | Revisa `channel_id` (`--login` lo lista) y que eres propietario o administrador del canal. Si sigue fallando, actualiza neonize: `pip install -U neonize`. |
 | Errores de certificado (SSL) | Se resuelven solos con los certificados de Windows (antivirus como Avast). Si siguen, actualiza con `pip install -r requirements.txt`. |
