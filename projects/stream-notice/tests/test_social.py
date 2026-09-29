@@ -356,6 +356,8 @@ def test_whatsapp_no_necesita_la_url_publica():
     ({**WA, "channel_id": "34600000000@s.whatsapp.net"}, "@newsletter"),
     ({**WA, "channel_id": "120363000000000000@x@newsletter"}, "@newsletter"),
     ({**WA, "channel_id": "@newsletter"}, "@newsletter"),
+    ({**WA, "channel_id": "١٢٣@newsletter"}, "@newsletter"),
+    ({**WA, "channel_id": "²@newsletter"}, "@newsletter"),
 ])
 def test_whatsapp_configuracion_incompleta_no_conecta(story, linked, settings, match):
     client, connect = linked
@@ -386,6 +388,13 @@ def test_whatsapp_pie_y_enlace_nulos_usan_los_de_por_defecto(story, linked):
     whatsapp.publish(story, "Tetris", {**WA, "caption": None, "link": None}, connect)
     assert client.sent[0][1].imageMessage.caption == whatsapp.DEFAULT_CAPTION.replace("{game}", "Tetris").replace(
         "{link}", whatsapp.DEFAULT_LINK)
+
+
+def test_whatsapp_error_sin_texto_muestra_su_tipo(story, linked):
+    client, connect = linked
+    client.fail = TimeoutError()
+    with pytest.raises(whatsapp.WhatsAppError, match=r"\(TimeoutError\)"):
+        whatsapp.publish(story, "Fortnite", WA, connect)
 
 
 def test_whatsapp_envio_rechazado_explica_que_revisar(story, linked):

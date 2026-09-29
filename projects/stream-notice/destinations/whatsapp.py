@@ -79,7 +79,7 @@ def _connect(session_path: Path, timeout: float = CONNECT_TIMEOUT, on_qr=None):
         try:
             client.connect()
         except Exception as error:
-            fail(f"No se pudo conectar con WhatsApp ({error or type(error).__name__}).")
+            fail(f"No se pudo conectar con WhatsApp ({str(error) or type(error).__name__}).")
 
     # connect() bloquea hasta que se llama a stop(): va en su propio hilo
     worker = threading.Thread(target=run, daemon=True)
@@ -113,7 +113,7 @@ def _channel(settings: dict) -> str:
     if not channel_id or channel_id.startswith("TU_"):
         raise WhatsAppError(f"Falta destinations.whatsapp.channel_id en config.json. {LOGIN_HELP} para ver el id.")
     user, _, server = channel_id.partition("@")
-    if server != "newsletter" or not user.isdigit():
+    if server != "newsletter" or not (user.isascii() and user.isdigit()):
         raise WhatsAppError("destinations.whatsapp.channel_id debe tener la forma 1234567890@newsletter.")
     return channel_id
 
@@ -133,7 +133,7 @@ def publish(image_path: Path, game_name: str, settings: dict, connect=_connect) 
             user, server = channel_id.split("@")
             client.send_message(build_jid(user, server), message)
         except Exception as error:
-            raise WhatsAppError(f"WhatsApp no ha aceptado el aviso ({error or type(error).__name__}): "
+            raise WhatsAppError(f"WhatsApp no ha aceptado el aviso ({str(error) or type(error).__name__}): "
                                 "comprueba que eres propietario o administrador del canal y el channel_id.") from error
     return "aviso publicado en el canal"
 
