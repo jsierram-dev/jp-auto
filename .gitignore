@@ -11,6 +11,9 @@ venv/
 config.json
 # Tokens the programs refresh on their own
 tokens.json
+# WhatsApp linked-device session (stream-notice) and its pairing QR
+whatsapp_session.sqlite3*
+whatsapp_qr.png
 
 # Generated output
 output/

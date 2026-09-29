@@ -1,6 +1,8 @@
-"""Publicación en redes con las APIs simuladas: alojamiento en GitHub, Instagram y TikTok."""
+"""Publicación en redes con las APIs simuladas: alojamiento en GitHub, Instagram, TikTok y canal de WhatsApp."""
 
+import hashlib
 import sys
+import threading
 import time
 import types
 
@@ -287,40 +289,58 @@ def test_tiktok_fallo_al_procesar(story):
         tiktok.publish(story, "Fortnite", TT, _Context(), TikTokSession(statuses=("FAILED",)))
 
 
-# --- Canal de WhatsApp (Whapi) ---
+# --- Canal de WhatsApp (neonize, con el cliente simulado) ---
 
-WA = {"token": "tok", "channel_id": "120363000000000000@newsletter", "link": "https://twitch.tv/jscorpiodv"}
+WA = {"channel_id": "120363000000000000@newsletter", "link": "https://twitch.tv/jscorpiodv"}
 
 
-class WhapiSession:
-    def __init__(self, status=200, body=None, fail=False):
-        self.status, self.body, self.fail = status, body, fail
-        self.calls = []
+class FakeWhatsApp:
+    """Lo que publish() usa del cliente de neonize: subir al canal y enviar."""
 
-    def post(self, url, headers=None, data=None, files=None, **kwargs):
+    def __init__(self, fail=None):
+        self.fail, self.uploads, self.sent = fail, [], []
+
+    def upload_newsletter(self, data, media_type):
+        self.uploads.append((data, media_type))
+        return types.SimpleNamespace(url="https://mmg.whatsapp.net/x", DirectPath="/m1/v/x")
+
+    def send_message(self, to, message):
         if self.fail:
-            raise whatsapp.requests.ConnectionError("sin red")
-        name, handle, mime = files["media"]
-        self.calls.append((url, headers, data, name, handle.read(), mime))
-        body = self.body if self.body is not None else {"sent": True, "message": {"id": "m1"}}
-        return _Response(self.status, body)
+            raise self.fail
+        self.sent.append((to, message))
 
 
-def test_whatsapp_envia_la_imagen_con_pie_y_enlace_al_canal(story):
-    session = WhapiSession()
-    assert whatsapp.publish(story, "Fortnite", WA, session) == "aviso publicado en el canal"
-    url, headers, data, name, content, mime = session.calls[0]
-    assert url == "https://gate.whapi.cloud/messages/image"
-    assert headers == {"Authorization": "Bearer tok"}
-    assert data["to"] == WA["channel_id"]
-    assert data["caption"] == "🔴 ¡En directo! Hoy toca Fortnite\nhttps://twitch.tv/jscorpiodv"
-    assert (name, content, mime) == (story.name, b"jpeg", "image/jpeg")
+@pytest.fixture
+def linked(tmp_path, monkeypatch):
+    """Sesión vinculada (fichero en una carpeta temporal) y conexión simulada."""
+    session = tmp_path / "whatsapp_session.sqlite3"
+    session.write_bytes(b"")
+    monkeypatch.setattr(whatsapp, "SESSION_PATH", session)
+    client = FakeWhatsApp()
+
+    @whatsapp.contextmanager
+    def connect(path):
+        assert path == session
+        yield client
+    return client, connect
 
 
-def test_whatsapp_pie_personalizado(story):
-    session = WhapiSession()
-    whatsapp.publish(story, "Tetris", {**WA, "caption": "{game} ya → {link}", "link": "https://x.tv/y"}, session)
-    assert session.calls[0][2]["caption"] == "Tetris ya → https://x.tv/y"
+def test_whatsapp_sube_la_imagen_sin_cifrar_y_la_envia_con_pie_al_canal(story, linked):
+    client, connect = linked
+    assert whatsapp.publish(story, "Fortnite", WA, connect) == "aviso publicado en el canal"
+    assert client.uploads == [(b"jpeg", whatsapp.MediaType.MediaImage)]
+    to, message = client.sent[0]
+    assert (to.User, to.Server) == ("120363000000000000", "newsletter")
+    image = message.imageMessage
+    assert image.caption == "🔴 ¡En directo! Hoy toca Fortnite\nhttps://twitch.tv/jscorpiodv"
+    assert (image.URL, image.directPath, image.mimetype) == ("https://mmg.whatsapp.net/x", "/m1/v/x", "image/jpeg")
+    assert image.fileLength == 4 and image.fileSHA256 == hashlib.sha256(b"jpeg").digest()
+
+
+def test_whatsapp_pie_personalizado(story, linked):
+    client, connect = linked
+    whatsapp.publish(story, "Tetris", {**WA, "caption": "{game} ya → {link}", "link": "https://x.tv/y"}, connect)
+    assert client.sent[0][1].imageMessage.caption == "Tetris ya → https://x.tv/y"
 
 
 def test_whatsapp_no_necesita_la_url_publica():
@@ -329,33 +349,23 @@ def test_whatsapp_no_necesita_la_url_publica():
 
 
 @pytest.mark.parametrize("settings, match", [
-    ({**WA, "token": "TU_TOKEN_DE_WHAPI"}, "whatsapp.token"),
     ({**WA, "channel_id": ""}, "whatsapp.channel_id"),
-    ({**WA, "channel_id": "34600000000"}, "@newsletter"),
-    ({**WA, "token": None}, "whatsapp.token"),
     ({**WA, "channel_id": None}, "whatsapp.channel_id"),
+    ({**WA, "channel_id": "TU_ID_DE_CANAL@newsletter"}, "whatsapp.channel_id"),
+    ({**WA, "channel_id": "34600000000"}, "@newsletter"),
+    ({**WA, "channel_id": "34600000000@s.whatsapp.net"}, "@newsletter"),
 ])
-def test_whatsapp_configuracion_incompleta_no_llama_a_la_api(story, settings, match):
-    session = WhapiSession()
+def test_whatsapp_configuracion_incompleta_no_conecta(story, linked, settings, match):
+    client, connect = linked
     with pytest.raises(whatsapp.WhatsAppError, match=match):
-        whatsapp.publish(story, "Fortnite", settings, session)
-    assert session.calls == []
+        whatsapp.publish(story, "Fortnite", settings, connect)
+    assert client.uploads == []
 
 
-@pytest.mark.parametrize("status, match", [
-    (401, "vuelve a escanear el QR"),
-    (402, "límite del plan gratuito"),
-    (403, "administrador"),
-    (429, "limitado"),
-])
-def test_whatsapp_errores_conocidos_explican_que_hacer(story, status, match):
-    with pytest.raises(whatsapp.WhatsAppError, match=match):
-        whatsapp.publish(story, "Fortnite", WA, WhapiSession(status, {"error": {"code": status}}))
-
-
-def test_whatsapp_error_desconocido_muestra_el_mensaje_de_whapi(story):
-    with pytest.raises(whatsapp.WhatsAppError, match="Whapi: algo raro"):
-        whatsapp.publish(story, "Fortnite", WA, WhapiSession(500, {"error": {"message": "algo raro"}}))
+def test_whatsapp_sin_vincular_pide_el_login_sin_conectar(story, tmp_path, monkeypatch):
+    monkeypatch.setattr(whatsapp, "SESSION_PATH", tmp_path / "no-existe.sqlite3")
+    with pytest.raises(whatsapp.WhatsAppError, match="--login"):
+        whatsapp.publish(story, "Fortnite", WA, connect=lambda path: pytest.fail("no debe conectar"))
 
 
 @pytest.mark.parametrize("game, caption, expected", [
@@ -363,38 +373,98 @@ def test_whatsapp_error_desconocido_muestra_el_mensaje_de_whapi(story):
     ("Tetris {Remix}", "{game} {link}", "Tetris {Remix} https://twitch.tv/jscorpiodv"),
     ("Tetris", "🔴 {game}", "🔴 Tetris"),
 ])
-def test_whatsapp_pie_con_llaves_o_emoji_no_rompe(story, game, caption, expected):
-    session = WhapiSession()
-    whatsapp.publish(story, game, {**WA, "caption": caption, "link": "https://twitch.tv/jscorpiodv"}, session)
-    assert session.calls[0][2]["caption"] == expected
+def test_whatsapp_pie_con_llaves_o_emoji_no_rompe(story, linked, game, caption, expected):
+    client, connect = linked
+    whatsapp.publish(story, game, {**WA, "caption": caption}, connect)
+    assert client.sent[0][1].imageMessage.caption == expected
 
 
-def test_whatsapp_pie_y_enlace_nulos_usan_los_de_por_defecto(story):
-    session = WhapiSession()
-    whatsapp.publish(story, "Tetris", {**WA, "caption": None, "link": None}, session)
-    assert session.calls[0][2]["caption"] == whatsapp.DEFAULT_CAPTION.replace("{game}", "Tetris").replace(
+def test_whatsapp_pie_y_enlace_nulos_usan_los_de_por_defecto(story, linked):
+    client, connect = linked
+    whatsapp.publish(story, "Tetris", {**WA, "caption": None, "link": None}, connect)
+    assert client.sent[0][1].imageMessage.caption == whatsapp.DEFAULT_CAPTION.replace("{game}", "Tetris").replace(
         "{link}", whatsapp.DEFAULT_LINK)
 
 
-@pytest.mark.parametrize("body", [{"error": "texto suelto"}, ["raro"], "raro"])
-def test_whatsapp_error_con_formato_inesperado_da_mensaje_claro(story, body):
-    with pytest.raises(whatsapp.WhatsAppError, match="Whapi"):
-        whatsapp.publish(story, "Fortnite", WA, WhapiSession(500, body))
+def test_whatsapp_envio_rechazado_explica_que_revisar(story, linked):
+    client, connect = linked
+    client.fail = RuntimeError("server returned error 403")
+    with pytest.raises(whatsapp.WhatsAppError, match="403.*propietario o administrador"):
+        whatsapp.publish(story, "Fortnite", WA, connect)
 
 
-def test_whatsapp_respuesta_sin_enviar(story):
-    with pytest.raises(whatsapp.WhatsAppError, match="Whapi"):
-        whatsapp.publish(story, "Fortnite", WA, WhapiSession(200, {"sent": False}))
+# La conexión real (_connect) con un NewClient simulado que lanza el evento que se le pida
+
+class FakeNewClient:
+    instances = []
+
+    def __init__(self, name, fire=None):
+        self.name, self.fire = name, fire
+        self.handlers, self.stopped, self.finalized = {}, threading.Event(), False
+        client = self
+
+        class _Event:
+            def __call__(self, event_type):
+                return lambda fn: client.handlers.__setitem__(event_type, fn)
+
+            def qr(self, fn):
+                client.handlers["qr"] = fn
+                return fn
+        self.event = _Event()
+        FakeNewClient.instances.append(self)
+
+    def connect(self):
+        if self.fire == "qr":
+            self.handlers["qr"](self, b"codigo-qr")
+        elif self.fire is not None:
+            self.handlers[self.fire](self, types.SimpleNamespace(Message="motivo", Reason=0))
+        self.stopped.wait(5)  # como el de verdad: bloquea hasta stop()
+
+    def stop(self):
+        self.stopped.set()
+
+    def _stop_finalizer(self):
+        self.finalized = True
 
 
-def test_whatsapp_sin_conexion(story):
-    with pytest.raises(whatsapp.WhatsAppError, match="No se pudo conectar"):
-        whatsapp.publish(story, "Fortnite", WA, WhapiSession(fail=True))
+def _fake_client(monkeypatch, fire):
+    FakeNewClient.instances.clear()
+    monkeypatch.setattr(whatsapp, "NewClient", lambda name: FakeNewClient(name, fire))
 
 
-def test_whatsapp_falla_y_los_demas_destinos_siguen(monkeypatch, story):
-    monkeypatch.setattr(whatsapp, "requests", types.SimpleNamespace(
-        Session=lambda: WhapiSession(401, {}), RequestException=Exception, ConnectionError=Exception))
+def test_whatsapp_conecta_y_cierra_la_sesion_al_terminar(monkeypatch, tmp_path):
+    _fake_client(monkeypatch, whatsapp.ConnectedEv)
+    with whatsapp._connect(tmp_path / "s.sqlite3", timeout=2) as client:
+        assert not client.stopped.is_set()
+    assert client.stopped.is_set() and client.finalized and client.name == str(tmp_path / "s.sqlite3")
+
+
+@pytest.mark.parametrize("fire, match", [
+    ("qr", "ya no es válida.*--login"),
+    (whatsapp.LoggedOutEv, "desde el móvil.*--login"),
+    (whatsapp.ConnectFailureEv, r"rechazó la conexión \(motivo\)"),
+    (whatsapp.TemporaryBanEv, "bloqueado temporalmente"),
+    (None, "no responde"),
+])
+def test_whatsapp_fallos_de_conexion_explican_que_hacer_y_cierran(monkeypatch, tmp_path, fire, match):
+    _fake_client(monkeypatch, fire)
+    with pytest.raises(whatsapp.WhatsAppError, match=match):
+        with whatsapp._connect(tmp_path / "s.sqlite3", timeout=0.5):
+            pytest.fail("no debe llegar a publicar")
+    assert FakeNewClient.instances[0].stopped.is_set()
+
+
+def test_whatsapp_en_el_login_el_qr_se_ensena(monkeypatch, tmp_path):
+    _fake_client(monkeypatch, "qr")
+    shown = []
+    with pytest.raises(whatsapp.WhatsAppError, match="no responde"):  # nadie lo escanea
+        with whatsapp._connect(tmp_path / "s.sqlite3", timeout=0.5, on_qr=shown.append):
+            pass
+    assert shown == [b"codigo-qr"]
+
+
+def test_whatsapp_falla_y_los_demas_destinos_siguen(monkeypatch, story, tmp_path):
+    monkeypatch.setattr(whatsapp, "SESSION_PATH", tmp_path / "no-existe.sqlite3")
     opened = []
     monkeypatch.setattr(publish.importlib, "import_module", lambda name: {
         "destinations.whatsapp": whatsapp,
@@ -404,4 +474,6 @@ def test_whatsapp_falla_y_los_demas_destinos_siguen(monkeypatch, story):
     config = {"destinations": {"whatsapp": {**WA, "enabled": True}, "open_image": {"enabled": True}}}
     results = publish.publish(story, "Fortnite", config)
     assert [(r.name, r.ok) for r in results] == [("Canal de WhatsApp", False), ("Abrir en el PC", True)]
-    assert "QR" in results[0].message and opened == [story]
+    assert "--login" in results[0].message and opened == [story]
+
+

@@ -6,8 +6,8 @@ from PIL import Image
 import popup
 from publish import PublishResult
 
-LONG_ERROR = ("La sesión de WhatsApp en Whapi se ha desvinculado o el token no es válido: vuelve a escanear "
-              "el QR en el panel de Whapi y revisa destinations.whatsapp.token.")
+LONG_ERROR = ("WhatsApp no ha aceptado el aviso (server returned error 403): comprueba que eres propietario "
+              "o administrador del canal y el channel_id.")
 NAMES = [("open_image", "Abrir imagen"), ("instagram", "Instagram"), ("tiktok", "TikTok"),
          ("whatsapp", "Canal de WhatsApp")]
 
