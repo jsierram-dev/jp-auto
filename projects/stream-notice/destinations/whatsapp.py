@@ -28,11 +28,12 @@ from neonize.proto.waE2E.WAWebProtobufsE2E_pb2 import ImageMessage, Message
 from neonize.utils.enum import MediaType
 from neonize.utils.jid import build_jid
 
-# neonize configura el logging raíz a INFO al importarse y vuelca los mensajes internos de WhatsApp:
-# en el registro solo interesan los errores (los mensajes propios ya explican qué pasa)
+# neonize configura el logging raíz a INFO al importarse y vuelca los mensajes internos de WhatsApp. Se callan:
+# al desconectar justo tras enviar, whatsmeow registra como ERROR la sincronización que deja a medias, y los
+# fallos reales ya llegan como eventos con un mensaje propio
 logging.getLogger().setLevel(logging.WARNING)
 for _name in ("neonize", "neonize.utils.log", "whatsmeow", "Whatsmeow"):
-    logging.getLogger(_name).setLevel(logging.ERROR)
+    logging.getLogger(_name).setLevel(logging.CRITICAL)
 
 NAME = "Canal de WhatsApp"
 SESSION_PATH = Path(__file__).resolve().parents[1] / "whatsapp_session.sqlite3"
