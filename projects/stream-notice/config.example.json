@@ -44,7 +44,6 @@
     },
     "whatsapp": {
       "enabled": false,
-      "token": "TU_TOKEN_DE_WHAPI",
       "channel_id": "TU_ID_DE_CANAL@newsletter",
       "link": "https://twitch.tv/jscorpiodv",
       "caption": "🔴 ¡En directo! Hoy toca {game}\n{link}"

@@ -5,3 +5,4 @@ numpy
 scipy
 truststore
 pystray
+neonize>=0.5.2,<0.6  # destinations/whatsapp.py usa un atributo interno (_stop_finalizer)
