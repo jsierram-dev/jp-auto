@@ -74,8 +74,15 @@ def _connect(session_path: Path, timeout: float = CONNECT_TIMEOUT, on_qr=None):
     client.event(TemporaryBanEv)(lambda *_: fail("WhatsApp ha bloqueado temporalmente este número; no se ha publicado."))
     client.event(ConnectFailureEv)(lambda _, ev: fail(f"WhatsApp rechazó la conexión ({ev.Message or ev.Reason}). {LOGIN_HELP}"))
 
+    def run():
+        # Si neonize falla al arrancar, se avisa ya con su error en vez de esperar a agotar el tiempo
+        try:
+            client.connect()
+        except Exception as error:
+            fail(f"No se pudo conectar con WhatsApp ({error or type(error).__name__}).")
+
     # connect() bloquea hasta que se llama a stop(): va en su propio hilo
-    worker = threading.Thread(target=client.connect, daemon=True)
+    worker = threading.Thread(target=run, daemon=True)
     worker.start()
     try:
         if not ready.wait(timeout):
@@ -87,7 +94,7 @@ def _connect(session_path: Path, timeout: float = CONNECT_TIMEOUT, on_qr=None):
         client.stop()
         worker.join(10)
         # neonize vuelve a parar el cliente al recolectarlo: se adelanta aquí para que no pare uno posterior
-        # con la misma sesión (el siguiente directo)
+        # con la misma sesión (el siguiente directo). Es un atributo interno: requirements.txt fija neonize 0.5.x
         client._stop_finalizer()
 
 
@@ -105,7 +112,8 @@ def _channel(settings: dict) -> str:
     channel_id = "" if channel_id is None else str(channel_id).strip()
     if not channel_id or channel_id.startswith("TU_"):
         raise WhatsAppError(f"Falta destinations.whatsapp.channel_id en config.json. {LOGIN_HELP} para ver el id.")
-    if not channel_id.endswith("@newsletter") or not channel_id.split("@")[0].isdigit():
+    user, _, server = channel_id.partition("@")
+    if server != "newsletter" or not user.isdigit():
         raise WhatsAppError("destinations.whatsapp.channel_id debe tener la forma 1234567890@newsletter.")
     return channel_id
 

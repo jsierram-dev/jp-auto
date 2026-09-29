@@ -108,7 +108,7 @@ Use it on **one PC only**. TikTok's refresh token changes every time it's used, 
 | TikTok ✗ "no está autorizado" / "ha caducado" | Run `python -m destinations.tiktok --login` once (the browser opens to accept). |
 | Canal de WhatsApp ✗ "no está vinculado" / "ya no es válida" / "desde el móvil" | The link expired (phone offline ~14 days) or was closed from the phone: run `python -m destinations.whatsapp --login` and scan the QR again. |
 | Canal de WhatsApp ✗ "no responde" | No internet, or WhatsApp is down: nothing was posted. The other destinations still publish. |
-| Canal de WhatsApp ✗ "no ha aceptado el aviso" | Check `channel_id` (`--login` lists it) and that you're the owner or an admin of the channel. If it keeps failing, update neonize: `pip install -U neonize`. |
+| Canal de WhatsApp ✗ "no ha aceptado el aviso" | Check `channel_id` (`--login` lists it) and that you're the owner or an admin of the channel. If it keeps failing, update the dependencies: `pip install -U -r requirements.txt`. |
 | Certificate errors (SSL) | Handled automatically with Windows certificates (antivirus such as Avast). If it persists, update `pip install -r requirements.txt`. |
 
 ---
@@ -217,5 +217,5 @@ Para quitar el arranque automático: **`uninstall_autostart.bat`** (y *Salir* de
 | TikTok ✗ "no está autorizado" / "ha caducado" | Ejecuta una vez `python -m destinations.tiktok --login` (se abre el navegador para aceptar). |
 | Canal de WhatsApp ✗ "no está vinculado" / "ya no es válida" / "desde el móvil" | La vinculación caducó (móvil ~14 días sin conexión) o se cerró desde el móvil: ejecuta `python -m destinations.whatsapp --login` y escanea otra vez el QR. |
 | Canal de WhatsApp ✗ "no responde" | Sin internet o WhatsApp caído: no se ha publicado. Los demás destinos publican igual. |
-| Canal de WhatsApp ✗ "no ha aceptado el aviso" | Revisa `channel_id` (`--login` lo lista) y que eres propietario o administrador del canal. Si sigue fallando, actualiza neonize: `pip install -U neonize`. |
+| Canal de WhatsApp ✗ "no ha aceptado el aviso" | Revisa `channel_id` (`--login` lo lista) y que eres propietario o administrador del canal. Si sigue fallando, actualiza las dependencias: `pip install -U -r requirements.txt`. |
 | Errores de certificado (SSL) | Se resuelven solos con los certificados de Windows (antivirus como Avast). Si siguen, actualiza con `pip install -r requirements.txt`. |

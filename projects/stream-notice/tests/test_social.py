@@ -354,6 +354,8 @@ def test_whatsapp_no_necesita_la_url_publica():
     ({**WA, "channel_id": "TU_ID_DE_CANAL@newsletter"}, "whatsapp.channel_id"),
     ({**WA, "channel_id": "34600000000"}, "@newsletter"),
     ({**WA, "channel_id": "34600000000@s.whatsapp.net"}, "@newsletter"),
+    ({**WA, "channel_id": "120363000000000000@x@newsletter"}, "@newsletter"),
+    ({**WA, "channel_id": "@newsletter"}, "@newsletter"),
 ])
 def test_whatsapp_configuracion_incompleta_no_conecta(story, linked, settings, match):
     client, connect = linked
@@ -414,6 +416,8 @@ class FakeNewClient:
         FakeNewClient.instances.append(self)
 
     def connect(self):
+        if self.fire == "crash":
+            raise RuntimeError("no se pudo cargar la librería")
         if self.fire == "qr":
             self.handlers["qr"](self, b"codigo-qr")
         elif self.fire is not None:
@@ -452,6 +456,15 @@ def test_whatsapp_fallos_de_conexion_explican_que_hacer_y_cierran(monkeypatch, t
         with whatsapp._connect(tmp_path / "s.sqlite3", timeout=0.5):
             pytest.fail("no debe llegar a publicar")
     assert FakeNewClient.instances[0].stopped.is_set()
+
+
+def test_whatsapp_si_neonize_falla_al_arrancar_avisa_ya_con_su_error(monkeypatch, tmp_path):
+    _fake_client(monkeypatch, "crash")
+    start = time.monotonic()
+    with pytest.raises(whatsapp.WhatsAppError, match="No se pudo conectar.*no se pudo cargar la librería"):
+        with whatsapp._connect(tmp_path / "s.sqlite3", timeout=5):
+            pytest.fail("no debe llegar a publicar")
+    assert time.monotonic() - start < 2  # sin esperar a agotar el tiempo
 
 
 def test_whatsapp_en_el_login_el_qr_se_ensena(monkeypatch, tmp_path):
